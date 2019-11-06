@@ -4,7 +4,8 @@ import os, time, sys
 from os.path import isfile, join
 import shutil
 
-os.system('./build')
+os.system('./stopall >/dev/null 2>/dev/null')
+os.system('./build >/dev/null 2>/dev/null')
 
 test_output = 'test_output'
 tests = 'tests'
@@ -26,12 +27,39 @@ for f in os.listdir(tests):
             os.system('./master.py < ' + abs_f + \
                     ' 2> ' + join(test_output, fn+'.err') +\
                     ' > ' + join(test_output, fn+'.output'))
+
+            os.system('./stopall >/dev/null 2>/dev/null')
             num_tests += 1
             with open(join(test_output, fn+'.output')) as fi:
-                    out = fi.read()
+                    out = fi.read().strip().split('\n')
             with open(join(tests, fn+'.output')) as fi:
-                    std = fi.read()
-            if out == std:
+                    std = fi.read().strip().split('\n')
+            result = True
+            out_index = 0
+            for s in std:
+                json = eval(s)
+                prev = None
+                for i in range(json['count']):
+                    # check the number of lines in output
+                    if out_index >= len(out):
+                        result = False
+                        break
+                    # check if all the outputs are identical
+                    if prev is not None and prev != out[out_index]:
+                        result = False
+                    prev = out[out_index]
+                    # check if the output satisfies the requirement
+                    out_data = set(out[out_index].split(','))
+                    std_mandatory = set(json['mandatory'].split(','))
+                    std_all = set(json['optional'].split(',')).union(std_mandatory)
+                    if not out_data.issubset(std_all):
+                        result = False
+                    if not out_data.issuperset(std_mandatory):
+                        result = False
+
+                    out_index += 1
+
+            if result:
                 print 'correct'
                 num_pass += 1
             else:
