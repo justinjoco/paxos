@@ -3,6 +3,8 @@
 import os, time, sys
 from os.path import isfile, join
 import shutil
+import time 
+import math
 
 os.system('./stopall >/dev/null 2>/dev/null')
 os.system('./build >/dev/null 2>/dev/null')
@@ -17,7 +19,12 @@ except:
     pass
 os.mkdir(test_output)
 num_tests = 0
-num_pass = 0
+num_failed = 0
+tests_failed = []
+
+print("RUNNING TESTS ...")
+print("=============================")
+start = time.time()
 for f in os.listdir(tests):
     abs_f = join(tests, f)
     if isfile(abs_f):
@@ -61,12 +68,22 @@ for f in os.listdir(tests):
 
             if result:
                 print 'correct'
-                num_pass += 1
             else:
                 print 'wrong'
+                num_failed+=1
+                tests_failed.append(fn)
             time.sleep(2)
 
-if num_pass == num_tests:
-    print("SUCCESS: All tests pass!")
+end = time.time()
+elapsed = end - start
+print("=============================")
+print("{:.1f}% tests passed! {} tests failed out of {}".format((float(num_tests - num_failed)/float(num_tests)*100), num_failed, num_tests))
+print("Total time elapsed: {} minutes, {:.2f} seconds".format(int(math.floor(elapsed/60)), elapsed%60))
+if num_failed == 0:
+    print("Congratulations! All tests pass!")
 else:
-    print("FAIL: At least one test failed!")
+    print("=============================")
+    print("Tests failed:")
+    for test in tests_failed:
+        print("  " + test)
+
