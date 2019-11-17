@@ -7,7 +7,7 @@ type Leader struct {
 
 // functions:
 
-func (self *Leader) run() {
+func (self *Leader) Run(replicaLeaderChannel chan string) {
 
 }
 

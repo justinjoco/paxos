@@ -9,19 +9,20 @@ import (
 )
 
 type Acceptor struct {
-	pid   string
-	peers []string //might be the list of acceptor ports to talk to
-	alive int      //should just be the count of alive processes for
+	pid							string
+	peers						[]string //might be the list of acceptor ports to talk to
+	alive						int      //should just be the count of alive processes for
+	peerFacingPort	string
 	//majority calculation purposes
 }
 
-func (self *Acceptor) run() {
+func (self *Acceptor) Run() {
 
 }
 
 //Heartbeat should hhappen here
 
-func (self *Acceptor) Heartbeat(broadcastMode bool, message string) {
+func (self *Acceptor) Heartbeat(broadcastMode bool, message string) { //maintain alive list; calculate the majority
 
 	for {
 

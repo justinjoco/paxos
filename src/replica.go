@@ -11,7 +11,10 @@ import (
 type Replica struct {
 	pid              string
 	masterFacingPort string
-	chatLog          []string
+	chatLog          map[int]string
+	proposals				 map[int]string
+	decisions				 map[int]string		//the key is the slot number
+	slot						 int
 }
 
 const (
@@ -19,7 +22,29 @@ const (
 	CONNECT_TYPE = "tcp"
 )
 
-func (self *Replica) Run() {
+func (self *Replica) Propose(proposal string, replicaLeaderChannel chan string){
+	max_slot := 0
+	for k, v := range self.decisions{
+		if v == proposal{
+			return
+		}
+		if k > max_slot{
+			max_slot = k
+		}
+	}
+	next_slot := max_slot + 1
+	self.proposals[next_slot] = proposal
+
+	msgToLeader := "propose " + strconv.Itoa(next_slot) +" "+ proposal	//send proposal to leader
+	replicaLeaderChannel <- msgToLeader
+}
+
+func (self *Replica) Perform(proposal string){
+
+}
+
+
+func (self *Replica) Run(replicaLeaderChannel chan string) {
 
 	lMaster, error := net.Listen(CONNECT_TYPE, CONNECT_HOST+":"+self.masterFacingPort)
 
@@ -41,7 +66,8 @@ func (self *Replica) Run() {
 
 func (self *Replica) HandleMaster(lMaster net.Listener) {
 	defer lMaster.Close()
-
+	msgId := ""
+	msg := ""
 	connMaster, error := lMaster.Accept()
 	reader := bufio.NewReader(connMaster)
 	for {
@@ -51,34 +77,51 @@ func (self *Replica) HandleMaster(lMaster net.Listener) {
 			continue
 		}
 
-		message, _ := reader.ReadString('\n')
+		request, _ := reader.ReadString('\n')
 
-		message = strings.TrimSuffix(message, "\n")
-		messageSlice := strings.Split(message, " ")
-		command := messageSlice[0]
+		request = strings.TrimSuffix(request, "\n")
+		requestSlice := strings.Split(request, " ")
+		command := requestSlice[0]
 
 		retMessage := ""
 		removeComma := 0
 		switch command {
-		case "alive":
-			retMessage += "alive "
-			for _, port := range self.alive {
-				retMessage += port + ","
+		case "msg":
+			retMessage += "ack "
+			msgId = requestSlice[1]
+			msg = requestSlice[2]
+			self.propose(msg)
+			//retMessage = retMessage[0 : len(retMessage)-removeComma]
+			//lenStr := strconv.Itoa(len(retMessage))
+			//retMessage = lenStr + "-" + retMessage
+
+		case "get":
+			retMessage += "messages "
+			for _, request := range self.messages {
+				retMessage += request + ","
 				removeComma = 1
 			}
 			retMessage = retMessage[0 : len(retMessage)-removeComma]
 			lenStr := strconv.Itoa(len(retMessage))
 			retMessage = lenStr + "-" + retMessage
 
-		case "get":
-			retMessage += "messages "
-			for _, message := range self.messages {
-				retMessage += message + ","
-				removeComma = 1
-			}
-			retMessage = retMessage[0 : len(retMessage)-removeComma]
-			lenStr := strconv.Itoa(len(retMessage))
-			retMessage = lenStr + "-" + retMessage
+		case "crash":
+			os.exit(1)
+
+		case "crashAfterP1b":
+			os.exit(1)
+
+		case "crashAfterP2b":
+			os.exit(1)
+
+		case "crashP1a":
+			os.exit(1)
+
+		case "crashP2a":
+			os.exit(1)
+
+		case "crashDecision":
+			os.exit(1)
 
 		default:
 			broadcastMessage := messageSlice[1]
