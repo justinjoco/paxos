@@ -49,12 +49,16 @@ func (self *Replica) Perform(proposal string, connMaster net.Conn) {
 		}
 	}
 	if ! incremented {
-		self.chatLog[self.slot] = proposal
-		self.slot += 1
+		
 		// send back to master
 		// split the proposal into msgID and actual msg
 		proposalSlice := strings.Split(proposal, " ")
+		msg := proposalSlice[1]
 		msgID := proposalSlice[0]
+
+		self.chatLog[self.slot] = msg
+		self.slot += 1
+
 		retMessage := "ack "
 		retMessage += msgID + " "
 		retMessage += strconv.Itoa(self.slot)
@@ -166,10 +170,9 @@ func (self *Replica) HandleMaster(connMaster net.Conn) {
 		removeComma := 0
 		switch command {
 		case "msg":
-			retMessage += "ack "
 			msgId = requestSlice[1]
 			msg = requestSlice[2]
-			self.propose(msg)
+			self.Propose(msgId + " " + msg)
 
 		case "get":
 			retMessage += "chatLog "
