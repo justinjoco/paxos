@@ -9,10 +9,10 @@ import (
 )
 
 type Acceptor struct {
-	pid							string
-	peers						[]string //might be the list of acceptor ports to talk to
-	alive						int      //should just be the count of alive processes for
-	peerFacingPort	string
+	pid              string
+	acceptors        []string //might be the list of acceptor ports to talk to
+	alive            int      //should just be the count of alive processes for
+	leaderFacingPort string
 	//majority calculation purposes
 }
 
@@ -30,14 +30,14 @@ func (self *Acceptor) Heartbeat(broadcastMode bool, message string) { //maintain
 
 		for _, otherPort := range self.peers {
 
-			if otherPort != self.peerFacingPort {
-				peerConn, err := net.Dial("tcp", "127.0.0.1:"+otherPort)
+			if otherPort != self.leaderFacingPort {
+				leaderConn, err := net.Dial("tcp", "127.0.0.1:"+otherPort)
 				if err != nil {
 					continue
 				}
 
-				fmt.Fprintf(peerConn, message+"\n")
-				response, _ := bufio.NewReader(peerConn).ReadString('\n')
+				fmt.Fprintf(leaderConn, message+"\n")
+				response, _ := bufio.NewReader(leaderConn).ReadString('\n')
 				tempAlive = append(tempAlive, response)
 			}
 

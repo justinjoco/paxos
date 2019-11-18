@@ -2,6 +2,8 @@ package main
 
 type Leader struct {
 	pid       string
+	replicas  []string
+	acceptors []string
 	ballotNum int
 }
 
