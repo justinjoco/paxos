@@ -125,29 +125,26 @@ func (self *Replica) HandleCommander(lCommander net.Listener, connMaster net.Con
 				if pdprime != "" && pdprime != pprime {
 					self.Propose(pdprime)
 				}
-				self.Perform(pprime)
+				self.Perform(pprime, connMaster)
 			}
 			
 
 		default:
-			broadcastMessage := messageSlice[1]
-			if broadcastMessage != "" {
-				self.messages = append(self.messages, broadcastMessage)
-				self.Heartbeat(true, broadcastMessage)
-			} else {
-				retMessage += "Invalid keyword, mustbe decision"
-			}
+			
+			retMessage += "Invalid keyword, mustbe decision"
+			connCommander.Write([]byte(retMessage))
+			
 		}
 
-		connMaster.Write([]byte(retMessage))
+		
 
 	}
 
-	connMaster.Close()
+	//connMaster.Close()
 
 }
 
-}
+
 
 func (self *Replica) HandleMaster(connMaster net.Conn) {
 	msgId := ""
@@ -179,10 +176,15 @@ func (self *Replica) HandleMaster(connMaster net.Conn) {
 			// iterate through the chatlog
 			msgCount := 0
 			removeComma := 0
+			counter := 0
 			for i:=0; i<=100; i++ {
+				if counter == len(self.chatlog){
+					break
+				}
 				if self.chatLog[i] != "" {
 					retMessage += self.chatLog[i] + ","
 					removeComma = 1
+					counter+=1
 				}
 			}
 			retMessage = retMessage[0 : len(retMessage)-removeComma]
@@ -210,13 +212,7 @@ func (self *Replica) HandleMaster(connMaster net.Conn) {
 			os.exit(1)
 
 		default:
-			broadcastMessage := messageSlice[1]
-			if broadcastMessage != "" {
-				self.messages = append(self.messages, broadcastMessage)
-				self.Heartbeat(true, broadcastMessage)
-			} else {
-				retMessage += "Invalid command. Use 'get', 'alive', or 'broadcast <message>'"
-			}
+			retMessage += "Invalid command. Use 'get', 'alive', or 'broadcast <message>'"
 			connMaster.Write([]byte(retMessage))
 		}
 
