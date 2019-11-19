@@ -71,7 +71,7 @@ func (self *Replica) Perform(proposal string, connMaster net.Conn) {
 
 }
 
-func (self *Replica) Run(leader Leader, replicaLeaderChannel chan string) {
+func (self *Replica) Run(replicaLeaderChannel chan string) {
 
 	lMaster, error := net.Listen(CONNECT_TYPE, CONNECT_HOST+":"+self.masterFacingPort)
 	lCommander, error := net.Listen(CONNECT_TYPE, CONNECT_HOST+":"+self.commanderFacingPort)
@@ -90,7 +90,7 @@ func (self *Replica) Run(leader Leader, replicaLeaderChannel chan string) {
 	connMaster, error := lMaster.Accept()
 	go self.HandleCommander(lCommander, connMaster, replicaLeaderChannel) // TO listen to decisions by other process's commanders
 
-	self.HandleMaster(connMaster, leader, replicaLeaderChannel)
+	self.HandleMaster(connMaster, replicaLeaderChannel)
 
 }
 
@@ -145,11 +145,11 @@ func (self *Replica) HandleCommander(lCommander net.Listener, connMaster net.Con
 
 }
 
-func (self *Replica) HandleMaster(connMaster net.Conn, leader Leader, replicaLeaderChannel chan string) {
+func (self *Replica) HandleMaster(connMaster net.Conn, replicaLeaderChannel chan string) {
 	msgId := ""
 	msg := ""
 	reader := bufio.NewReader(connMaster)
-	contacted := false
+//	contacted := false
 	for {
 		/*
 			if error != nil {
@@ -158,10 +158,10 @@ func (self *Replica) HandleMaster(connMaster net.Conn, leader Leader, replicaLea
 			}*/
 
 		request, _ := reader.ReadString('\n')
-		if !contacted{
+	/*	if !contacted{
 			leader.Run(replicaLeaderChannel)
 			contacted = true
-		}
+		}*/
 		request = strings.TrimSuffix(request, "\n")
 		requestSlice := strings.Split(request, " ")
 		command := requestSlice[0]

@@ -49,30 +49,38 @@ func (self *Leader) Run(replicaLeaderChannel chan string) {
 		case workerMsg := <-workerChannel:
 			fmt.Println("RECEIVED FROM WORKER:" + workerMsg)
 			messageSlice := strings.Split(workerMsg, ",")
-			if messageSlice[0] == "adopted" {
-				pvalues := messageSlice[2:]
 
-				for _, pvalue := range pvalues {
-					pvalSlice := strings.Split(pvalue, " ")
-					found := false
-					//	receivedBallot := pvalSlice[0]
-					receivedSlot, _ := strconv.Atoi(pvalSlice[1])
-					receivedProposal := pvalSlice[2] + " " + pvalSlice[3]
-					for slot, _ := range self.proposals {
-						if slot == receivedSlot {
-							found = true
-							break
+			if messageSlice[0] == "adopted" {
+				//fmt.Println
+				pvalues := messageSlice[2:]
+				fmt.Println(pvalues)
+				if len(pvalues) > 0 {
+					for _, pvalue := range pvalues {
+						pvalSlice := strings.Split(pvalue, " ")
+						found := false
+						//	receivedBallot := pvalSlice[0]
+						receivedSlot, _ := strconv.Atoi(pvalSlice[1])
+						receivedProposal := pvalSlice[2] + " " + pvalSlice[3]
+						for slot, _ := range self.proposals {
+							if slot == receivedSlot {
+								found = true
+								break
+							}
+						}
+						if !found {
+							self.proposals[receivedSlot] = receivedProposal
+						}
+
+						for slot, proposal := range self.proposals {
+							go self.spawnCommander(workerChannel, slot, proposal)
 						}
 					}
-					if !found {
-						self.proposals[receivedSlot] = receivedProposal
-					}
-
+				}else{
+					fmt.Println(self.proposals)
 					for slot, proposal := range self.proposals {
 						go self.spawnCommander(workerChannel, slot, proposal)
 					}
 				}
-
 				self.active = true
 
 			} else if messageSlice[0] == "preempted" {
@@ -171,6 +179,7 @@ func (self *Leader) scoutTalkToAcceptor(processPort string, scoutAcceptorChannel
 	acceptorConn, err := net.Dial("tcp", "127.0.0.1:"+processPort)
 	if err != nil{
 		fmt.Println(err)
+		scoutAcceptorChannel <- ""
 		return
 	}
 	fmt.Println("Sending p1a")
@@ -184,6 +193,7 @@ func (self *Leader) commTalkToAcceptor(processPort string, commAcceptorChannel c
 	acceptorConn, err := net.Dial("tcp", "127.0.0.1:"+processPort)
 	if err != nil{
 		fmt.Println(err)
+		commAcceptorChannel <- ""
 		return
 	}
 	fmt.Println("Sending p2a")
