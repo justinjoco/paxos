@@ -81,7 +81,7 @@ func main() {
 		chatLog: make(map[int]string), proposals: make(map[int]string), decisions: make(map[int]string)}
 
 	go acceptor.Run()
-	replica.Run(leader, replicaLeaderChannel) //Leader runs on main; others are parallel go routines (threads)
+	go replica.Run(replicaLeaderChannel) //Leader runs on main; others are parallel go routines (threads)
 
 	//	Heartbeat(pid, leaderFacingPort, n, acceptors)
 	//	fmt.Println("ALL ALIVE")
