@@ -1,6 +1,13 @@
 package main
 
-import "strings"
+import (
+	"bufio"
+	"fmt"
+	"net"
+	"strconv"
+	"strings"
+	"os"
+)
 
 type Leader struct {
 	pid       string

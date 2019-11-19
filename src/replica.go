@@ -6,6 +6,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"os"
 )
 
 type Replica struct {
@@ -86,13 +87,13 @@ func (self *Replica) Run(replicaLeaderChannel chan string) {
 		fmt.Println("Error listening!")
 	}
 	connMaster, error := lMaster.Accept()
-	go self.HandleCommander(lCommander, connMaster) // TO listen to decisions by other process's commanders
+	go self.HandleCommander(lCommander, connMaster, replicaLeaderChannel) // TO listen to decisions by other process's commanders
 
-	self.HandleMaster(connMaster)
+	self.HandleMaster(connMaster, replicaLeaderChannel)
 
 }
 
-func (self *Replica) HandleCommander(lCommander net.Listener, connMaster net.Conn) {
+func (self *Replica) HandleCommander(lCommander net.Listener, connMaster net.Conn, replicaLeaderChannel chan string) {
 	defer lCommander.Close()
 	msg := ""
 	connCommander, error := lCommander.Accept()
@@ -111,28 +112,30 @@ func (self *Replica) HandleCommander(lCommander net.Listener, connMaster net.Con
 		keyWord := messageSlice[0]
 
 		removeComma := 0
+		retMessage := ""
 		switch keyWord {
-		case "decision":
-			slot_num := messageSlice[1]  // s
-			command := messageSlice[2]  // p
-			self.decisions[slot_num] = command
-			for {
-				pprime := self.decisions[self.slot]
-				if pprime == "" {
-					break
+			case "decision":
+				slotNum := messageSlice[1]  // s
+				command := messageSlice[2]  // p
+				slotInt, _ := strconv.Atoi(slotNum)
+				self.decisions[slotInt] = command
+				for {
+					pprime := self.decisions[self.slot]
+					if pprime == "" {
+						break
+					}
+					pdprime := self.proposals[self.slot]
+					if pdprime != "" && pdprime != pprime {
+						self.Propose(pdprime, replicaLeaderChannel)
+					}
+					self.Perform(pprime, connMaster)
 				}
-				pdprime := self.proposals[self.slot]
-				if pdprime != "" && pdprime != pprime {
-					self.Propose(pdprime)
-				}
-				self.Perform(pprime, connMaster)
-			}
-			
+				
 
-		default:
-			
-			retMessage += "Invalid keyword, mustbe decision"
-			connCommander.Write([]byte(retMessage))
+			default:
+				
+				retMessage += "Invalid keyword, mustbe decision"
+				connCommander.Write([]byte(retMessage))
 			
 		}
 
@@ -146,16 +149,16 @@ func (self *Replica) HandleCommander(lCommander net.Listener, connMaster net.Con
 
 
 
-func (self *Replica) HandleMaster(connMaster net.Conn) {
+func (self *Replica) HandleMaster(connMaster net.Conn, replicaLeaderChannel chan string) {
 	msgId := ""
 	msg := ""
 	reader := bufio.NewReader(connMaster)
 	for {
-
+		/*
 		if error != nil {
 			fmt.Println("Error while accepting connection")
 			continue
-		}
+		}*/
 
 		request, _ := reader.ReadString('\n')
 
@@ -169,7 +172,7 @@ func (self *Replica) HandleMaster(connMaster net.Conn) {
 		case "msg":
 			msgId = requestSlice[1]
 			msg = requestSlice[2]
-			self.Propose(msgId + " " + msg)
+			self.Propose(msgId + " " + msg, replicaLeaderChannel)
 
 		case "get":
 			retMessage += "chatLog "
@@ -178,7 +181,7 @@ func (self *Replica) HandleMaster(connMaster net.Conn) {
 			removeComma := 0
 			counter := 0
 			for i:=0; i<=100; i++ {
-				if counter == len(self.chatlog){
+				if counter == len(self.chatLog){
 					break
 				}
 				if self.chatLog[i] != "" {
@@ -194,22 +197,22 @@ func (self *Replica) HandleMaster(connMaster net.Conn) {
 			connMaster.Write([]byte(retMessage))
 
 		case "crash":
-			os.exit(1)
+			os.Exit(1)
 
 		case "crashAfterP1b":
-			os.exit(1)
+			os.Exit(1)
 
 		case "crashAfterP2b":
-			os.exit(1)
+			os.Exit(1)
 
 		case "crashP1a":
-			os.exit(1)
+			os.Exit(1)
 
 		case "crashP2a":
-			os.exit(1)
+			os.Exit(1)
 
 		case "crashDecision":
-			os.exit(1)
+			os.Exit(1)
 
 		default:
 			retMessage += "Invalid command. Use 'get', 'alive', or 'broadcast <message>'"
@@ -238,9 +241,7 @@ func (self *Replica) ReceivePeers(lPeer net.Listener) {
 		message = strings.TrimSuffix(message, "\n")
 		if message == "ping" {
 			connPeer.Write([]byte(self.pid))
-		} else {
-			self.messages = append(self.messages, message)
-		}
+		} 
 		connPeer.Close()
 
 	}
