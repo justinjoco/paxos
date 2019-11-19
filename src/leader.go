@@ -62,10 +62,10 @@ func (self *Leader) Run(replicaLeaderChannel chan string) {
 func (self *Leader) spawnScout(workerChannel chan string) {
 	pvalues := make([]string, 0)
 	alive := self.aliveAcceptors
-
+	majorityNum := len(alive)/2 +1
 	scoutAcceptorChannel := make(chan string)
 	for _, processPort := range alive{
-		go talkToAcceptor(processPort, scoutAcceptorChannel)
+		go scoutTalkToAcceptor(processPort, scoutAcceptorChannel)
 
 	}
 	counter := 0
@@ -94,7 +94,7 @@ func (self *Leader) spawnScout(workerChannel chan string) {
 						}
 
 						counter += 1
-						if counter >= self.majorityNum {
+						if counter >= majorityNum {
 
 							
 							pvalStr := ""
@@ -123,16 +123,68 @@ func (self *Leader) spawnScout(workerChannel chan string) {
 
 }
 
-func (self *Leader) talkToAcceptor(processPort string, scoutAcceptorChannel chan string){
+func (self *Leader) scoutTalkToAcceptor(processPort string, scoutAcceptorChannel chan string){
 	acceptorConn, _ := net.Dial("tcp", "127.0.0.1:"+processPort)
 	fmt.Fprintf(acceptorConn,"p1a," + self.pid + "," + strconv.Itoa(self.ballotNum))
 	response, _ := bufio.NewReader(acceptorConn).ReadString('\n')
 	scoutAcceptorChannel <- response
 }
 
+func (self *Leader) commTalkToAcceptor(processPort string, commAcceptorChannel chan string){
+	acceptorConn, _ := net.Dial("tcp", "127.0.0.1:"+processPort)
+	fmt.Fprintf(acceptorConn,"p2a," + self.pid + "," + strconv.Itoa(self.ballotNum) + " " 
+	+ strconv.Itoa(self.slotNum) + " " + self.proposals[self.slotNum])
+	response, _ := bufio.NewReader(acceptorConn).ReadString('\n')
+	commAcceptorChannel <- response
+}
 
 func (self *Leader) spawnCommander(workerChannel chan string) {
+	alive := self.aliveAcceptors
+	majorityNum := len(alive)/2 +1
+	commAcceptorChannel := make(chan string)
+	for _, processPort := range alive{
+		go commTalkToAcceptor(processPort, commAcceptorChannel)
+	}
+	counter := 0
+	for {
+		select {
+			case response := <- commAcceptorChannel:
+				responseSlice := strings.Split(response, ",")
+				keyWord := responseSlice[0]
+				if keyWord == "p2b"{
+					acceptorId := responseSlice[1]
+					acceptorBallotInt, _ := strconv.Atoi(responseSlice[2])
+					if acceptorBallotInt == self.ballotNum {
 
+						
+
+						counter += 1
+						if counter >= majorityNum {
+
+							
+							pvalStr := ""
+							for _, pval := range pvalues {
+								pvalStr += "," + pval
+							} 
+
+							workerChannel <- "adopted," + strconv.Itoa(self.ballotNum) + pvalStr
+							break
+						}
+
+
+					} else{
+						workerChannel <- "preempted," + responseSlice[2]
+						break
+					}
+
+
+				}
+				
+			default:
+				continue
+		}
+
+	}
 	
 }
 
@@ -161,7 +213,6 @@ func (self *Leader) Heartbeat() { //maintain alive list; calculate the majority
 		tempAlive = append(tempAlive, self.pid)
 		sort.Strings(tempAlive)
 		self.aliveAcceptors = tempAlive
-		self.majorityNum = len(self.aliveAcceptors)/2 + 1
 		time.Sleep(1000 * time.Millisecond)
 	}
 }
