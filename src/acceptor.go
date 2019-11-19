@@ -16,11 +16,11 @@ type Acceptor struct {
 
 
 func (self *Acceptor) Run() {
-    lLeader, error := net.Listen(CONNECT_TYPE, CONNECT_HOST+":"+self.leaderFacingPort)
+    lLeader, _ := net.Listen(CONNECT_TYPE, CONNECT_HOST+":"+self.leaderFacingPort)
 
     defer lLeader.Close()
-	msg := ""
-	connLeader, error := lLeader.Accept()
+//	msg := ""
+	connLeader, _ := lLeader.Accept()
 	reader := bufio.NewReader(connLeader)
 
 
@@ -35,7 +35,7 @@ func (self *Acceptor) Run() {
 		retMessage := ""
 		switch keyWord {
 			case "p1a":
-				leaderId := messageSlice[1]  // lambda
+			//	leaderId := messageSlice[1]  // lambda
 				receivedBallot:= messageSlice[2]  // b
 				receivedBallotInt, _ := strconv.Atoi(receivedBallot)
 				if receivedBallotInt > self.currentBallot {
@@ -51,7 +51,7 @@ func (self *Acceptor) Run() {
 			
 				
 			case "p2a":
-				leaderId := messageSlice[1]  // lambda
+			//	leaderId := messageSlice[1]  // lambda
 				pval := messageSlice[2]
 				pvalSlice := strings.Split(pval, " ")
 				receivedBallotInt, _ := strconv.Atoi(pvalSlice[0])

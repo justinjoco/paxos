@@ -95,7 +95,7 @@ func (self *Replica) Run(replicaLeaderChannel chan string) {
 
 func (self *Replica) HandleCommander(lCommander net.Listener, connMaster net.Conn, replicaLeaderChannel chan string) {
 	defer lCommander.Close()
-	msg := ""
+	//msg := ""
 	connCommander, error := lCommander.Accept()
 	reader := bufio.NewReader(connCommander)
 	for {
@@ -111,7 +111,7 @@ func (self *Replica) HandleCommander(lCommander net.Listener, connMaster net.Con
 		messageSlice := strings.Split(message, " ")
 		keyWord := messageSlice[0]
 
-		removeComma := 0
+		//removeComma := 0
 		retMessage := ""
 		switch keyWord {
 			case "decision":
@@ -167,7 +167,7 @@ func (self *Replica) HandleMaster(connMaster net.Conn, replicaLeaderChannel chan
 		command := requestSlice[0]
 
 		retMessage := ""
-		removeComma := 0
+		//removeComma := 0
 		switch command {
 		case "msg":
 			msgId = requestSlice[1]
@@ -177,7 +177,7 @@ func (self *Replica) HandleMaster(connMaster net.Conn, replicaLeaderChannel chan
 		case "get":
 			retMessage += "chatLog "
 			// iterate through the chatlog
-			msgCount := 0
+	//		msgCount := 0
 			removeComma := 0
 			counter := 0
 			for i:=0; i<=100; i++ {
