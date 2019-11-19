@@ -23,20 +23,24 @@ func (self *Acceptor) Run() {
 	defer lLeader.Close()
 	//	msg := ""
 	
-
+//	if err != nil {
+	//	fmt.Println("error while accepting connection")
+		//continue
+//	}
+	//reader := bufio.NewReader(connLeader)
 	for {
 		connLeader, err := lLeader.Accept()
 		if err != nil {
-		//	fmt.Println("error while accepting connection")
+			fmt.Println("error while accepting connection")
 			continue
 		}
 		reader := bufio.NewReader(connLeader)
 		message, _ := reader.ReadString('\n')
-		
+		fmt.Println(message)
 		message = strings.TrimSuffix(message, "\n")
 		messageSlice := strings.Split(message, ",")
 		keyWord := messageSlice[0]
-		fmt.Println(keyWord)
+		//fmt.Println(keyWord)
 		retMessage := ""
 		switch keyWord {
 		case "p1a":
@@ -52,7 +56,7 @@ func (self *Acceptor) Run() {
 				acceptedStr += "," + accepted
 			}
 			retMessage += acceptedStr
-			connLeader.Write([]byte(retMessage))
+			connLeader.Write([]byte(retMessage + "\n"))
 			if crashStage == "p1b" {
 				os.Exit(1)
 			}
@@ -67,7 +71,7 @@ func (self *Acceptor) Run() {
 				self.accepted = append(self.accepted, pval)
 			}
 			retMessage += "p2b," + self.pid + "," + strconv.Itoa(self.currentBallot)
-			connLeader.Write([]byte(retMessage))
+			connLeader.Write([]byte(retMessage+ "\n"))
 			if crashStage == "p2b" {
 				os.Exit(1)
 			}
@@ -75,8 +79,8 @@ func (self *Acceptor) Run() {
 			//fmt.Println("SEND BACK PID")
 			connLeader.Write([]byte(self.pid))
 		default:
-			retMessage += "Invalid keyword, must be p1a or p2a"
-			connLeader.Write([]byte(retMessage))
+			retMessage += "Invalid keyword, must be p1a or p2a or ping"
+			connLeader.Write([]byte(retMessage+ "\n"))
 
 		}
 		connLeader.Close()

@@ -1,20 +1,20 @@
 package main
 
 import (
-	"bufio"
-	"net"
+//	"bufio"
+//	"net"
 	"os"
 	"strconv"
-	"fmt"
-	"time"
+//	"fmt"
+//	"time"
 )
 
 var crashStage string
 var crashAfterSentTo []string
 
+/*
 
-
- func Heartbeat(pid string, n int, acceptors []string) { //maintain alive list; calculate the majority
+ func Heartbeat(pid string, leaderFacingPort string, n int, acceptors []string) { //maintain alive list; calculate the majority
 
  //	fmt.Println(acceptors)
  	tempAlive := make([]string, 0)
@@ -23,33 +23,34 @@ var crashAfterSentTo []string
  		tempAlive = tempAlive[:0]
 
  		for _, otherPort := range acceptors {
- 			fmt.Println(otherPort)
- 			
- 				acceptorConn, err := net.Dial("tcp", "127.0.0.1:"+otherPort)
- 				if err != nil {
- 					fmt.Println(err)
- 					continue
-				}
+ 			//fmt.Println(otherPort)
+ 				if otherPort != leaderFacingPort {
+	 				acceptorConn, err := net.Dial("tcp", "127.0.0.1:"+otherPort)
+	 				if err != nil {
+	 					fmt.Println(err)
+	 					continue
+					}
 
- 				fmt.Fprintf(acceptorConn, "ping\n")
- 				reader := bufio.NewReader(acceptorConn)
- 				response, _ := reader.ReadString('\n')
- 		//		fmt.Println(response)
- 				tempAlive = append(tempAlive, response)
- 				acceptorConn.Close()
+	 				fmt.Fprintf(acceptorConn, "ping\n")
+	 				reader := bufio.NewReader(acceptorConn)
+	 				response, _ := reader.ReadString('\n')
+	 		//		fmt.Println(response)
+	 				tempAlive = append(tempAlive, response)
+	 				acceptorConn.Close()
+ 				}
 			}
-
+		tempAlive = append(tempAlive, pid)
  		fmt.Println("PID:" + pid)
  		fmt.Println(tempAlive)
  		if len(tempAlive) == n {
  			break
  		} 
 
- 		time.Sleep(300 * time.Millisecond)
+ 		time.Sleep(500 * time.Millisecond)
  	}
  }
 
-
+*/
 
 func main() {
 
@@ -80,11 +81,11 @@ func main() {
 		chatLog: make(map[int]string), proposals: make(map[int]string), decisions: make(map[int]string)}
 
 	go acceptor.Run()
-	go replica.Run(replicaLeaderChannel) //Leader runs on main; others are parallel go routines (threads)
+	replica.Run(leader, replicaLeaderChannel) //Leader runs on main; others are parallel go routines (threads)
 	
-	Heartbeat(pid, n, acceptors)
-	fmt.Println("ALL ALIVE")
-	leader.Run(replicaLeaderChannel)
+//	Heartbeat(pid, leaderFacingPort, n, acceptors)
+//	fmt.Println("ALL ALIVE")
+	//leader.Run(replicaLeaderChannel)
 	
 
 	os.Exit(0)
