@@ -4,9 +4,9 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"os"
 	"strconv"
 	"strings"
-	"os"
 )
 
 type Replica struct {
@@ -44,13 +44,13 @@ func (self *Replica) Propose(proposal string, replicaLeaderChannel chan string) 
 func (self *Replica) Perform(proposal string, connMaster net.Conn) {
 	incremented := false
 	for s, p := range self.decisions {
-		if p==proposal && s<self.slot {
+		if p == proposal && s < self.slot {
 			self.slot += 1
 			incremented = true
 		}
 	}
-	if ! incremented {
-		
+	if !incremented {
+
 		// send back to master
 		// split the proposal into msgID and actual msg
 		proposalSlice := strings.Split(proposal, " ")
@@ -114,32 +114,29 @@ func (self *Replica) HandleCommander(lCommander net.Listener, connMaster net.Con
 		//removeComma := 0
 		retMessage := ""
 		switch keyWord {
-			case "decision":
-				slotNum := messageSlice[1]  // s
-				command := messageSlice[2]  // p
-				slotInt, _ := strconv.Atoi(slotNum)
-				self.decisions[slotInt] = command
-				for {
-					pprime := self.decisions[self.slot]
-					if pprime == "" {
-						break
-					}
-					pdprime := self.proposals[self.slot]
-					if pdprime != "" && pdprime != pprime {
-						self.Propose(pdprime, replicaLeaderChannel)
-					}
-					self.Perform(pprime, connMaster)
+		case "decision":
+			slotNum := messageSlice[1] // s
+			command := messageSlice[2] // p
+			slotInt, _ := strconv.Atoi(slotNum)
+			self.decisions[slotInt] = command
+			for {
+				pprime := self.decisions[self.slot]
+				if pprime == "" {
+					break
 				}
-				
+				pdprime := self.proposals[self.slot]
+				if pdprime != "" && pdprime != pprime {
+					self.Propose(pdprime, replicaLeaderChannel)
+				}
+				self.Perform(pprime, connMaster)
+			}
 
-			default:
-				
-				retMessage += "Invalid keyword, mustbe decision"
-				connCommander.Write([]byte(retMessage))
-			
+		default:
+
+			retMessage += "Invalid keyword, mustbe decision"
+			connCommander.Write([]byte(retMessage))
+
 		}
-
-		
 
 	}
 
@@ -147,18 +144,16 @@ func (self *Replica) HandleCommander(lCommander net.Listener, connMaster net.Con
 
 }
 
-
-
 func (self *Replica) HandleMaster(connMaster net.Conn, replicaLeaderChannel chan string) {
 	msgId := ""
 	msg := ""
 	reader := bufio.NewReader(connMaster)
 	for {
 		/*
-		if error != nil {
-			fmt.Println("Error while accepting connection")
-			continue
-		}*/
+			if error != nil {
+				fmt.Println("Error while accepting connection")
+				continue
+			}*/
 
 		request, _ := reader.ReadString('\n')
 
@@ -172,22 +167,22 @@ func (self *Replica) HandleMaster(connMaster net.Conn, replicaLeaderChannel chan
 		case "msg":
 			msgId = requestSlice[1]
 			msg = requestSlice[2]
-			self.Propose(msgId + " " + msg, replicaLeaderChannel)
+			self.Propose(msgId+" "+msg, replicaLeaderChannel)
 
 		case "get":
 			retMessage += "chatLog "
 			// iterate through the chatlog
-	//		msgCount := 0
+			//		msgCount := 0
 			removeComma := 0
 			counter := 0
-			for i:=0; i<=100; i++ {
-				if counter == len(self.chatLog){
+			for i := 0; i <= 100; i++ {
+				if counter == len(self.chatLog) {
 					break
 				}
 				if self.chatLog[i] != "" {
 					retMessage += self.chatLog[i] + ","
 					removeComma = 1
-					counter+=1
+					counter += 1
 				}
 			}
 			retMessage = retMessage[0 : len(retMessage)-removeComma]
@@ -206,19 +201,18 @@ func (self *Replica) HandleMaster(connMaster net.Conn, replicaLeaderChannel chan
 			os.Exit(1)
 
 		case "crashP1a":
-			os.Exit(1)
+			replicaLeaderChannel <- "p1a" + " " + strings.Join(requestSlice[1:], " ")
 
 		case "crashP2a":
-			os.Exit(1)
+			replicaLeaderChannel <- "p2a" + " " + strings.Join(requestSlice[1:], " ")
 
 		case "crashDecision":
-			os.Exit(1)
+			replicaLeaderChannel <- "decision" + " " + strings.Join(requestSlice[1:], " ")
 
 		default:
 			retMessage += "Invalid command. Use 'get', 'alive', or 'broadcast <message>'"
 			connMaster.Write([]byte(retMessage))
 		}
-
 
 	}
 
@@ -241,7 +235,7 @@ func (self *Replica) ReceivePeers(lPeer net.Listener) {
 		message = strings.TrimSuffix(message, "\n")
 		if message == "ping" {
 			connPeer.Write([]byte(self.pid))
-		} 
+		}
 		connPeer.Close()
 
 	}
