@@ -2,11 +2,11 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"net"
 	"os"
 	"strconv"
 	"strings"
-	"fmt"
 )
 
 type Acceptor struct {
@@ -22,17 +22,17 @@ func (self *Acceptor) Run() {
 
 	defer lLeader.Close()
 	//	msg := ""
-	
 
 	for {
 		connLeader, err := lLeader.Accept()
 		if err != nil {
-		//	fmt.Println("error while accepting connection")
+			fmt.Println("error from acceptor: ")
+			fmt.Println(err)
 			continue
 		}
 		reader := bufio.NewReader(connLeader)
 		message, _ := reader.ReadString('\n')
-		
+		fmt.Println("I am a leader and I have received the message: " + message)
 		message = strings.TrimSuffix(message, "\n")
 		messageSlice := strings.Split(message, ",")
 		keyWord := messageSlice[0]
@@ -40,6 +40,7 @@ func (self *Acceptor) Run() {
 		retMessage := ""
 		switch keyWord {
 		case "p1a":
+			fmt.Println("I am acceptor " + self.pid + " and I received p1a")
 			//	leaderId := messageSlice[1]  // lambda
 			receivedBallot := messageSlice[2] // b
 			receivedBallotInt, _ := strconv.Atoi(receivedBallot)

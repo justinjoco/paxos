@@ -166,9 +166,9 @@ func (self *Leader) spawnScout(workerChannel chan string) {
 }
 
 func (self *Leader) scoutTalkToAcceptor(processPort string, scoutAcceptorChannel chan string) {
-	fmt.Println(processPort)
+	fmt.Println("Scout is talking to this acceptor: " + processPort)
 	acceptorConn, err := net.Dial("tcp", "127.0.0.1:"+processPort)
-	if err != nil{
+	if err != nil {
 		fmt.Println(err)
 		return
 	}
@@ -179,7 +179,7 @@ func (self *Leader) scoutTalkToAcceptor(processPort string, scoutAcceptorChannel
 
 func (self *Leader) commTalkToAcceptor(processPort string, commAcceptorChannel chan string, slotNum int, proposal string) {
 	acceptorConn, err := net.Dial("tcp", "127.0.0.1:"+processPort)
-	if err != nil{
+	if err != nil {
 		fmt.Println(err)
 		return
 	}

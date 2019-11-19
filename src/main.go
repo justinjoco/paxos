@@ -82,7 +82,7 @@ func main() {
 	go acceptor.Run()
 	go replica.Run(replicaLeaderChannel) //Leader runs on main; others are parallel go routines (threads)
 	
-	Heartbeat(pid, n, acceptors)
+	// Heartbeat(pid, n, acceptors)
 	fmt.Println("ALL ALIVE")
 	leader.Run(replicaLeaderChannel)
 	
