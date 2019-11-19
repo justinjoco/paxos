@@ -28,14 +28,14 @@ func main() {
 		replicas = append(replicas, replicaStr)
 	}
 
-	Leader := Leader{pid: id, ballotNum: 0, replicas: replicas, acceptors: acceptors} //ballot starts at zero - our choice
-	Acceptor := Acceptor{pid: id, leaderFacingPort: leaderFacingPort}
-	Replica := Replica{pid: id, masterFacingPort: masterFacingPort, commanderFacingPort: commanderFacingPort,
-		chatLog: make(map[int]string)}
+	leader := Leader{pid: id, ballotNum: 0, replicas: replicas, acceptors: acceptors, proposals : make(map[int]string)} //ballot starts at zero - our choice
+	acceptor := Acceptor{pid: id, leaderFacingPort: leaderFacingPort}
+	replica := Replica{pid: id, masterFacingPort: masterFacingPort, commanderFacingPort: commanderFacingPort,
+		chatLog: make(map[int]string), proposals: make(map[int]string), decisions: make(map[int]string)}
 
-	go Leader.Run(replicaLeaderChannel)
-	go Acceptor.Run()
-	Replica.Run(replicaLeaderChannel) //Replica runs on main; others are parallel go routines (threads)
+	go leader.Run(replicaLeaderChannel)
+	go acceptor.Run()
+	replica.Run(replicaLeaderChannel) //Replica runs on main; others are parallel go routines (threads)
 
 	os.Exit(0)
 
