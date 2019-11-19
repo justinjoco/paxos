@@ -31,6 +31,8 @@ func (self *Leader) Run(replicaLeaderChannel chan string) {
 		select {
 		case replicaMsg := <-replicaLeaderChannel:
 			fmt.Println("RECEIVED FROM REPLICA:" + replicaMsg)
+			fmt.Println("Is leader " + self.pid + " active?")
+			fmt.Println(self.active)
 			messageSlice := strings.Split(replicaMsg, " ")
 			if messageSlice[0] == "propose" { // If message from the replica is propose
 				self.slotNum, _ = strconv.Atoi(messageSlice[1])
@@ -75,8 +77,13 @@ func (self *Leader) Run(replicaLeaderChannel chan string) {
 							go self.spawnCommander(workerChannel, slot, proposal)
 						}
 					}
-				}else{
+				} else {
 					fmt.Println(self.proposals)
+					if len(self.proposals) == 0 {
+						self.active = true
+						fmt.Println("Leader " + self.pid + " is now active")
+						continue
+					}
 					for slot, proposal := range self.proposals {
 						go self.spawnCommander(workerChannel, slot, proposal)
 					}
@@ -111,7 +118,7 @@ func (self *Leader) spawnScout(workerChannel chan string) {
 			acceptorIdInt, _ := strconv.Atoi(acceptorId)
 			acceptorPort := strconv.Itoa(acceptorIdInt + 20000)
 			acceptorConn, _ := net.Dial("tcp", "127.0.0.1:"+acceptorPort)
-			fmt.Fprintf(acceptorConn, "p1a,"+self.pid+","+strconv.Itoa(self.ballotNum) + "\n")
+			fmt.Fprintf(acceptorConn, "p1a,"+self.pid+","+strconv.Itoa(self.ballotNum)+"\n")
 			acceptorConn.Close()
 		}
 		os.Exit(1)
@@ -183,7 +190,7 @@ func (self *Leader) scoutTalkToAcceptor(processPort string, scoutAcceptorChannel
 		return
 	}
 	fmt.Println("Sending p1a")
-	fmt.Fprintf(acceptorConn, "p1a,"+self.pid+","+strconv.Itoa(self.ballotNum) + "\n")
+	fmt.Fprintf(acceptorConn, "p1a,"+self.pid+","+strconv.Itoa(self.ballotNum)+"\n")
 	response, _ := bufio.NewReader(acceptorConn).ReadString('\n')
 	acceptorConn.Close()
 	scoutAcceptorChannel <- response
@@ -197,7 +204,7 @@ func (self *Leader) commTalkToAcceptor(processPort string, commAcceptorChannel c
 		return
 	}
 	fmt.Println("Sending p2a")
-	fmt.Fprintf(acceptorConn, "p2a,"+self.pid+","+strconv.Itoa(self.ballotNum)+" "+strconv.Itoa(slotNum)+" "+proposal + "\n")
+	fmt.Fprintf(acceptorConn, "p2a,"+self.pid+","+strconv.Itoa(self.ballotNum)+" "+strconv.Itoa(slotNum)+" "+proposal+"\n")
 	response, _ := bufio.NewReader(acceptorConn).ReadString('\n')
 	acceptorConn.Close()
 	commAcceptorChannel <- response
@@ -216,7 +223,7 @@ func (self *Leader) spawnCommander(workerChannel chan string, slotNum int, propo
 				acceptorIdInt, _ := strconv.Atoi(acceptorId)
 				acceptorPort := strconv.Itoa(acceptorIdInt + 20000)
 				acceptorConn, _ := net.Dial("tcp", "127.0.0.1:"+acceptorPort)
-				fmt.Fprintf(acceptorConn, "p2a,"+self.pid+","+strconv.Itoa(self.ballotNum)+" "+strconv.Itoa(slotNum)+" "+proposal + "\n")
+				fmt.Fprintf(acceptorConn, "p2a,"+self.pid+","+strconv.Itoa(self.ballotNum)+" "+strconv.Itoa(slotNum)+" "+proposal+"\n")
 				acceptorConn.Close()
 			}
 			os.Exit(1)
@@ -247,7 +254,7 @@ func (self *Leader) spawnCommander(workerChannel chan string, slotNum int, propo
 									replicaIdInt, _ := strconv.Atoi(replicaId)
 									replicaPort := strconv.Itoa(replicaIdInt + 20100)
 									replicaConn, _ := net.Dial("tcp", "127.0.0.1:"+replicaPort)
-									fmt.Fprintf(replicaConn, "decision,"+strconv.Itoa(slotNum)+","+proposal + "\n") 
+									fmt.Fprintf(replicaConn, "decision,"+strconv.Itoa(slotNum)+","+proposal+"\n")
 									replicaConn.Close()
 
 								}
@@ -256,7 +263,7 @@ func (self *Leader) spawnCommander(workerChannel chan string, slotNum int, propo
 						}
 						for _, replicaPort := range self.replicas {
 							replicaConn, _ := net.Dial("tcp", "127.0.0.1:"+replicaPort)
-							fmt.Fprintf(replicaConn, "decision,"+strconv.Itoa(slotNum)+","+proposal + "\n")
+							fmt.Fprintf(replicaConn, "decision,"+strconv.Itoa(slotNum)+","+proposal+"\n")
 							bufio.NewReader(replicaConn).ReadString('\n')
 							replicaConn.Close()
 						}
