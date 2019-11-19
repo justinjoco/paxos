@@ -30,6 +30,7 @@ func (self *Leader) Run(replicaLeaderChannel chan string) {
 
 		select {
 		case replicaMsg := <-replicaLeaderChannel:
+			fmt.Println("RECEIVED FROM REPLICA:" + replicaMsg)
 			messageSlice := strings.Split(replicaMsg, " ")
 			if messageSlice[0] == "propose" { // If message from the replica is propose
 				self.slotNum, _ = strconv.Atoi(messageSlice[1])
@@ -46,6 +47,7 @@ func (self *Leader) Run(replicaLeaderChannel chan string) {
 			}
 
 		case workerMsg := <-workerChannel:
+			fmt.Println("RECEIVED FROM WORKER:" + workerMsg)
 			messageSlice := strings.Split(workerMsg, ",")
 			if messageSlice[0] == "adopted" {
 				pvalues := messageSlice[2:]
@@ -90,6 +92,7 @@ func (self *Leader) Run(replicaLeaderChannel chan string) {
 func (self *Leader) spawnScout(workerChannel chan string) {
 	pvalues := make([]string, 0)
 	// alive := self.aliveAcceptors
+	fmt.Println("PID:" + self.pid + " SCOUT SPAWNED")
 	majorityNum := len(self.acceptors)/2 + 1
 	scoutAcceptorChannel := make(chan string)
 	if crashStage == "p1a" {
@@ -113,6 +116,7 @@ func (self *Leader) spawnScout(workerChannel chan string) {
 	for {
 		select {
 		case response := <-scoutAcceptorChannel:
+
 			responseSlice := strings.Split(response, ",")
 			keyWord := responseSlice[0]
 			if keyWord == "p1b" {
@@ -162,14 +166,23 @@ func (self *Leader) spawnScout(workerChannel chan string) {
 }
 
 func (self *Leader) scoutTalkToAcceptor(processPort string, scoutAcceptorChannel chan string) {
-	acceptorConn, _ := net.Dial("tcp", "127.0.0.1:"+processPort)
+	fmt.Println(processPort)
+	acceptorConn, err := net.Dial("tcp", "127.0.0.1:"+processPort)
+	if err != nil{
+		fmt.Println(err)
+		return
+	}
 	fmt.Fprintf(acceptorConn, "p1a,"+self.pid+","+strconv.Itoa(self.ballotNum))
 	response, _ := bufio.NewReader(acceptorConn).ReadString('\n')
 	scoutAcceptorChannel <- response
 }
 
 func (self *Leader) commTalkToAcceptor(processPort string, commAcceptorChannel chan string, slotNum int, proposal string) {
-	acceptorConn, _ := net.Dial("tcp", "127.0.0.1:"+processPort)
+	acceptorConn, err := net.Dial("tcp", "127.0.0.1:"+processPort)
+	if err != nil{
+		fmt.Println(err)
+		return
+	}
 	fmt.Fprintf(acceptorConn, "p2a,"+self.pid+","+strconv.Itoa(self.ballotNum)+" "+strconv.Itoa(slotNum)+" "+proposal)
 	response, _ := bufio.NewReader(acceptorConn).ReadString('\n')
 	commAcceptorChannel <- response
@@ -177,6 +190,7 @@ func (self *Leader) commTalkToAcceptor(processPort string, commAcceptorChannel c
 
 func (self *Leader) spawnCommander(workerChannel chan string, slotNum int, proposal string) {
 	// alive := self.aliveAcceptors
+	fmt.Println("PID:" + self.pid + " COMMANDER SPAWNED")
 	majorityNum := len(self.acceptors)/2 + 1
 	commAcceptorChannel := make(chan string)
 	if crashStage == "p2a" {

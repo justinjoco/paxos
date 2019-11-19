@@ -25,6 +25,7 @@ const (
 )
 
 func (self *Replica) Propose(proposal string, replicaLeaderChannel chan string) {
+	fmt.Println("PROPOSE: " + proposal)
 	max_slot := 0
 	for k, v := range self.decisions {
 		if v == proposal {
@@ -160,7 +161,7 @@ func (self *Replica) HandleMaster(connMaster net.Conn, replicaLeaderChannel chan
 		request = strings.TrimSuffix(request, "\n")
 		requestSlice := strings.Split(request, " ")
 		command := requestSlice[0]
-
+		fmt.Println("PID:"+ self.pid + " " + request)
 		retMessage := ""
 		//removeComma := 0
 		switch command {

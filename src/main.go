@@ -1,21 +1,64 @@
 package main
 
 import (
+	"bufio"
+	"net"
 	"os"
 	"strconv"
+	"fmt"
+	"time"
 )
 
 var crashStage string
 var crashAfterSentTo []string
 
+
+
+ func Heartbeat(pid string, n int, acceptors []string) { //maintain alive list; calculate the majority
+
+ //	fmt.Println(acceptors)
+ 	tempAlive := make([]string, 0)
+ 	for {
+
+ 		tempAlive = tempAlive[:0]
+
+ 		for _, otherPort := range acceptors {
+ 			fmt.Println(otherPort)
+ 			
+ 				acceptorConn, err := net.Dial("tcp", "127.0.0.1:"+otherPort)
+ 				if err != nil {
+ 					fmt.Println(err)
+ 					continue
+				}
+
+ 				fmt.Fprintf(acceptorConn, "ping\n")
+ 				reader := bufio.NewReader(acceptorConn)
+ 				response, _ := reader.ReadString('\n')
+ 		//		fmt.Println(response)
+ 				tempAlive = append(tempAlive, response)
+ 				acceptorConn.Close()
+			}
+
+ 		fmt.Println("PID:" + pid)
+ 		fmt.Println(tempAlive)
+ 		if len(tempAlive) == n {
+ 			break
+ 		} 
+
+ 		time.Sleep(300 * time.Millisecond)
+ 	}
+ }
+
+
+
 func main() {
 
 	args := os.Args[1:4]
 
-	id := args[0]
+	pid := args[0]
 	n, _ := strconv.Atoi(args[1])
 	masterFacingPort := args[2]
-	id_num, _ := strconv.Atoi(id)
+	id_num, _ := strconv.Atoi(pid)
 
 	replicaLeaderChannel := make(chan string)
 	leaderFacingPort := strconv.Itoa(20000 + id_num)
@@ -31,14 +74,18 @@ func main() {
 		replicas = append(replicas, replicaStr)
 	}
 
-	leader := Leader{pid: id, ballotNum: 0, replicas: replicas, acceptors: acceptors, proposals: make(map[int]string)} //ballot starts at zero - our choice
-	acceptor := Acceptor{pid: id, leaderFacingPort: leaderFacingPort}
-	replica := Replica{pid: id, masterFacingPort: masterFacingPort, commanderFacingPort: commanderFacingPort,
+	leader := Leader{pid: pid, ballotNum: 0, replicas: replicas, acceptors: acceptors, proposals: make(map[int]string)} //ballot starts at zero - our choice
+	acceptor := Acceptor{pid: pid, leaderFacingPort: leaderFacingPort}
+	replica := Replica{pid: pid, masterFacingPort: masterFacingPort, commanderFacingPort: commanderFacingPort,
 		chatLog: make(map[int]string), proposals: make(map[int]string), decisions: make(map[int]string)}
 
-	go leader.Run(replicaLeaderChannel)
 	go acceptor.Run()
-	replica.Run(replicaLeaderChannel) //Replica runs on main; others are parallel go routines (threads)
+	go replica.Run(replicaLeaderChannel) //Leader runs on main; others are parallel go routines (threads)
+	
+	Heartbeat(pid, n, acceptors)
+	fmt.Println("ALL ALIVE")
+	leader.Run(replicaLeaderChannel)
+	
 
 	os.Exit(0)
 

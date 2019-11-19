@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"fmt"
 )
 
 type Acceptor struct {
@@ -16,21 +17,26 @@ type Acceptor struct {
 }
 
 func (self *Acceptor) Run() {
+	fmt.Println("LEADER FACING PORT: " + self.leaderFacingPort)
 	lLeader, _ := net.Listen(CONNECT_TYPE, CONNECT_HOST+":"+self.leaderFacingPort)
 
 	defer lLeader.Close()
 	//	msg := ""
-	connLeader, _ := lLeader.Accept()
-	reader := bufio.NewReader(connLeader)
+	
 
 	for {
-
+		connLeader, err := lLeader.Accept()
+		if err != nil {
+		//	fmt.Println("error while accepting connection")
+			continue
+		}
+		reader := bufio.NewReader(connLeader)
 		message, _ := reader.ReadString('\n')
-
+		
 		message = strings.TrimSuffix(message, "\n")
 		messageSlice := strings.Split(message, ",")
 		keyWord := messageSlice[0]
-
+		fmt.Println(keyWord)
 		retMessage := ""
 		switch keyWord {
 		case "p1a":
@@ -65,12 +71,15 @@ func (self *Acceptor) Run() {
 			if crashStage == "p2b" {
 				os.Exit(1)
 			}
+		case "ping":
+			//fmt.Println("SEND BACK PID")
+			connLeader.Write([]byte(self.pid))
 		default:
 			retMessage += "Invalid keyword, must be p1a or p2a"
 			connLeader.Write([]byte(retMessage))
 
 		}
-
+		connLeader.Close()
 	}
 
 }
