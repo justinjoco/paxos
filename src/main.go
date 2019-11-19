@@ -29,7 +29,7 @@ func main() {
 	}
 
 	Leader := Leader{pid: id, ballotNum: 0, replicas: replicas, acceptors: acceptors} //ballot starts at zero - our choice
-	Acceptor := Acceptor{pid: id, acceptors: acceptors, leaderFacingPort: leaderFacingPort}
+	Acceptor := Acceptor{pid: id, leaderFacingPort: leaderFacingPort}
 	Replica := Replica{pid: id, masterFacingPort: masterFacingPort, commanderFacingPort: commanderFacingPort,
 		chatLog: make(map[int]string)}
 

@@ -13,10 +13,14 @@ type Leader struct {
 	pid       string
 	replicas  []string
 	acceptors []string
-	proposals map[int]string
-	ballotNum int
-	active    bool
+	aliveAcceptors []string
+	proposals      map[int]string
+	ballotNum      int
+	active         bool
+	majorityNum    int
 }
+
+
 
 func (self *Leader) Run(replicaLeaderChannel chan string) {
 	self.active = false
@@ -45,18 +49,121 @@ func (self *Leader) Run(replicaLeaderChannel chan string) {
 			messageSlice := strings.Split(replicaMsg, " ")
 			if messageSlice[0] == "adopted" {
 
+				self.active = true
+
 			} else if messageSlice[0] == "preempted" {
 
+				self.active = false
 			}
 		}
 	}
 }
 
 func (self *Leader) spawnScout(workerChannel chan string) {
+	pvalues := make([]string, 0)
+	alive := self.aliveAcceptors
+
+	scoutAcceptorChannel := make(chan string)
+	for _, processPort := range alive{
+		go talkToAcceptor(processPort, scoutAcceptorChannel)
+
+	}
+	counter := 0
+	for {
+		select {
+			case response := <- scoutAcceptorChannel:
+				responseSlice := strings.Split(response, ",")
+				keyWord := responseSlice[0]
+				if keyWord == "p1b"{
+					acceptorId := responseSlice[1]
+					acceptorBallotInt, _ := strconv.Atoi(responseSlice[2])
+					allAccepted := responseSlice[3:]
+					if acceptorBallotInt == self.ballotNum {
+
+						for _, receivedPval := range allAccepted {
+							found := false
+							for _, myPval := range pvalues {
+								if myPval == receivedPval {
+									found := true
+									break
+								}
+							}
+							if !found{
+								pvalues := append(pvalues, receivedPval)
+							}
+						}
+
+						counter += 1
+						if counter >= self.majorityNum {
+
+							
+							pvalStr := ""
+							for _, pval := range pvalues {
+								pvalStr += "," + pval
+							} 
+
+							workerChannel <- "adopted," + strconv.Itoa(self.ballotNum) + pvalStr
+							break
+						}
+
+
+					} else{
+						workerChannel <- "preempted," + responseSlice[2]
+						break
+					}
+
+
+				}
+				
+			default:
+				continue
+		}
+
+	}
 
 }
+
+func (self *Leader) talkToAcceptor(processPort string, scoutAcceptorChannel chan string){
+	acceptorConn, _ := net.Dial("tcp", "127.0.0.1:"+processPort)
+	fmt.Fprintf(acceptorConn,"p1a," + self.pid + "," + strconv.Itoa(self.ballotNum))
+	response, _ := bufio.NewReader(acceptorConn).ReadString('\n')
+	scoutAcceptorChannel <- response
+}
+
 
 func (self *Leader) spawnCommander(workerChannel chan string) {
 
-	self.active = false
+	
 }
+
+func (self *Leader) Heartbeat() { //maintain alive list; calculate the majority
+
+	for {
+
+		tempAlive := make([]string, 0)
+
+		for _, otherPort := range self.acceptors {
+
+			if otherPort != self.pid {
+				acceptorConn, err := net.Dial("tcp", "127.0.0.1:"+otherPort)
+				if err != nil {
+					continue
+				}
+
+				fmt.Fprintf(acceptorConn,"ping\n")
+				response, _ := bufio.NewReader(acceptorConn).ReadString('\n')
+				tempAlive = append(tempAlive, response)
+			}
+
+		}
+
+
+		tempAlive = append(tempAlive, self.pid)
+		sort.Strings(tempAlive)
+		self.aliveAcceptors = tempAlive
+		self.majorityNum = len(self.aliveAcceptors)/2 + 1
+		time.Sleep(1000 * time.Millisecond)
+	}
+}
+
+
