@@ -195,19 +195,19 @@ func (self *Replica) HandleMaster(connMaster net.Conn, replicaLeaderChannel chan
 			os.Exit(1)
 
 		case "crashAfterP1b":
-			os.Exit(1)
-
+			crashStage = "p1b"
 		case "crashAfterP2b":
-			os.Exit(1)
-
+			crashStage = "p2b"
 		case "crashP1a":
-			replicaLeaderChannel <- "p1a" + " " + strings.Join(requestSlice[1:], " ")
-
+			crashStage = "p1a"
+			crashAfterSentTo = requestSlice[1:]
 		case "crashP2a":
-			replicaLeaderChannel <- "p2a" + " " + strings.Join(requestSlice[1:], " ")
+			crashStage = "p2a"
+			crashAfterSentTo = requestSlice[1:]
 
 		case "crashDecision":
-			replicaLeaderChannel <- "decision" + " " + strings.Join(requestSlice[1:], " ")
+			crashStage = "decision"
+			crashAfterSentTo = requestSlice[1:]
 
 		default:
 			retMessage += "Invalid command. Use 'get', 'alive', or 'broadcast <message>'"

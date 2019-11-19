@@ -5,23 +5,20 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type Leader struct {
-	pid            string
-	replicas       []string
-	acceptors      []string
-	aliveAcceptors []string
-	proposals      map[int]string
-	ballotNum      int
-	active         bool
-	majorityNum    int
-	slotNum        int
-	crashAfter     []string
+	pid       string
+	replicas  []string
+	acceptors []string
+	// aliveAcceptors []string
+	proposals   map[int]string
+	ballotNum   int
+	active      bool
+	majorityNum int
+	slotNum     int
 }
 
 func (self *Leader) Run(replicaLeaderChannel chan string) {
@@ -46,8 +43,6 @@ func (self *Leader) Run(replicaLeaderChannel chan string) {
 						go self.spawnCommander(workerChannel, self.slotNum, proposal)
 					}
 				}
-			} else if messageSlice[0] == "crashAfter" {
-				self.crashAfter = messageSlice[1:]
 			}
 
 		case workerMsg := <-workerChannel:
@@ -94,12 +89,25 @@ func (self *Leader) Run(replicaLeaderChannel chan string) {
 
 func (self *Leader) spawnScout(workerChannel chan string) {
 	pvalues := make([]string, 0)
-	alive := self.aliveAcceptors
-	majorityNum := len(alive)/2 + 1
+	// alive := self.aliveAcceptors
+	majorityNum := len(self.acceptors)/2 + 1
 	scoutAcceptorChannel := make(chan string)
-	for _, processPort := range alive {
-		go self.scoutTalkToAcceptor(processPort, scoutAcceptorChannel)
+	if crashStage == "p1a" {
+		if len(crashAfterSentTo) == 0 {
+			os.Exit(1)
+		}
+		for _, acceptorId := range crashAfterSentTo {
+			acceptorIdInt, _ := strconv.Atoi(acceptorId)
+			acceptorPort := strconv.Itoa(acceptorIdInt + 20000)
+			acceptorConn, _ := net.Dial("tcp", "127.0.0.1:"+acceptorPort)
+			fmt.Fprintf(acceptorConn, "p1a,"+self.pid+","+strconv.Itoa(self.ballotNum))
+		}
+		os.Exit(1)
+	} else {
+		for _, acceptorPort := range self.acceptors {
+			go self.scoutTalkToAcceptor(acceptorPort, scoutAcceptorChannel)
 
+		}
 	}
 	counter := 0
 	for {
@@ -145,8 +153,8 @@ func (self *Leader) spawnScout(workerChannel chan string) {
 
 			}
 
-		default:
-			continue
+			// default:
+			// 	continue
 		}
 
 	}
@@ -156,9 +164,6 @@ func (self *Leader) spawnScout(workerChannel chan string) {
 func (self *Leader) scoutTalkToAcceptor(processPort string, scoutAcceptorChannel chan string) {
 	acceptorConn, _ := net.Dial("tcp", "127.0.0.1:"+processPort)
 	fmt.Fprintf(acceptorConn, "p1a,"+self.pid+","+strconv.Itoa(self.ballotNum))
-	if self.crashAfter[0] == "p1a" {
-		os.Exit(1)
-	}
 	response, _ := bufio.NewReader(acceptorConn).ReadString('\n')
 	scoutAcceptorChannel <- response
 }
@@ -166,20 +171,32 @@ func (self *Leader) scoutTalkToAcceptor(processPort string, scoutAcceptorChannel
 func (self *Leader) commTalkToAcceptor(processPort string, commAcceptorChannel chan string, slotNum int, proposal string) {
 	acceptorConn, _ := net.Dial("tcp", "127.0.0.1:"+processPort)
 	fmt.Fprintf(acceptorConn, "p2a,"+self.pid+","+strconv.Itoa(self.ballotNum)+" "+strconv.Itoa(slotNum)+" "+proposal)
-	if self.crashAfter[0] == "p2a" {
-		os.Exit(1)
-	}
 	response, _ := bufio.NewReader(acceptorConn).ReadString('\n')
 	commAcceptorChannel <- response
 }
 
 func (self *Leader) spawnCommander(workerChannel chan string, slotNum int, proposal string) {
-	alive := self.aliveAcceptors
-	majorityNum := len(alive)/2 + 1
+	// alive := self.aliveAcceptors
+	majorityNum := len(self.acceptors)/2 + 1
 	commAcceptorChannel := make(chan string)
-	for _, processPort := range alive {
-		go self.commTalkToAcceptor(processPort, commAcceptorChannel, slotNum, proposal)
+	if crashStage == "p2a" {
+		if len(crashAfterSentTo) == 0 {
+			os.Exit(1)
+		} else {
+			for _, acceptorId := range crashAfterSentTo {
+				acceptorIdInt, _ := strconv.Atoi(acceptorId)
+				acceptorPort := strconv.Itoa(acceptorIdInt + 20000)
+				acceptorConn, _ := net.Dial("tcp", "127.0.0.1:"+acceptorPort)
+				fmt.Fprintf(acceptorConn, "p2a,"+self.pid+","+strconv.Itoa(self.ballotNum)+" "+strconv.Itoa(slotNum)+" "+proposal)
+			}
+			os.Exit(1)
+		}
+	} else {
+		for _, acceptorPort := range self.acceptors {
+			go self.commTalkToAcceptor(acceptorPort, commAcceptorChannel, slotNum, proposal)
+		}
 	}
+
 	counter := 0
 	for {
 		select {
@@ -192,12 +209,22 @@ func (self *Leader) spawnCommander(workerChannel chan string, slotNum int, propo
 				if acceptorBallotInt == self.ballotNum {
 					counter += 1
 					if counter >= majorityNum {
+						if crashStage == "decision" {
+							if len(crashAfterSentTo) == 0 {
+								os.Exit(1)
+							} else {
+								for _, replicaId := range crashAfterSentTo {
+									replicaIdInt, _ := strconv.Atoi(replicaId)
+									replicaPort := strconv.Itoa(replicaIdInt + 20100)
+									replicaConn, _ := net.Dial("tcp", "127.0.0.1:"+replicaPort)
+									fmt.Fprintf(replicaConn, "decision,"+strconv.Itoa(slotNum)+","+proposal)
+								}
+								os.Exit(1)
+							}
+						}
 						for _, replicaPort := range self.replicas {
 							replicaConn, _ := net.Dial("tcp", "127.0.0.1:"+replicaPort)
 							fmt.Fprintf(replicaConn, "decision,"+strconv.Itoa(slotNum)+","+proposal)
-							if self.crashAfter[0] == "decision" {
-								os.Exit(1)
-							}
 							bufio.NewReader(replicaConn).ReadString('\n')
 						}
 						break
@@ -209,38 +236,38 @@ func (self *Leader) spawnCommander(workerChannel chan string, slotNum int, propo
 
 			}
 
-		default:
-			continue
+			// default:
+			// 	continue
 		}
 
 	}
 
 }
 
-func (self *Leader) Heartbeat() { //maintain alive list; calculate the majority
+// func (self *Leader) Heartbeat() { //maintain alive list; calculate the majority
 
-	for {
+// 	for {
 
-		tempAlive := make([]string, 0)
+// 		tempAlive := make([]string, 0)
 
-		for _, otherPort := range self.acceptors {
+// 		for _, otherPort := range self.acceptors {
 
-			if otherPort != self.pid {
-				acceptorConn, err := net.Dial("tcp", "127.0.0.1:"+otherPort)
-				if err != nil {
-					continue
-				}
+// 			if otherPort != self.pid {
+// 				acceptorConn, err := net.Dial("tcp", "127.0.0.1:"+otherPort)
+// 				if err != nil {
+// 					continue
+// 				}
 
-				fmt.Fprintf(acceptorConn, "ping\n")
-				response, _ := bufio.NewReader(acceptorConn).ReadString('\n')
-				tempAlive = append(tempAlive, response)
-			}
+// 				fmt.Fprintf(acceptorConn, "ping\n")
+// 				response, _ := bufio.NewReader(acceptorConn).ReadString('\n')
+// 				tempAlive = append(tempAlive, response)
+// 			}
 
-		}
+// 		}
 
-		tempAlive = append(tempAlive, self.pid)
-		sort.Strings(tempAlive)
-		self.aliveAcceptors = tempAlive
-		time.Sleep(1000 * time.Millisecond)
-	}
-}
+// 		tempAlive = append(tempAlive, self.pid)
+// 		sort.Strings(tempAlive)
+// 		self.aliveAcceptors = tempAlive
+// 		time.Sleep(1000 * time.Millisecond)
+// 	}
+// }

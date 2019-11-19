@@ -5,6 +5,9 @@ import (
 	"strconv"
 )
 
+var crashStage string
+var crashAfterSentTo []string
+
 func main() {
 
 	args := os.Args[1:4]
@@ -28,7 +31,7 @@ func main() {
 		replicas = append(replicas, replicaStr)
 	}
 
-	leader := Leader{pid: id, ballotNum: 0, replicas: replicas, acceptors: acceptors, proposals : make(map[int]string)} //ballot starts at zero - our choice
+	leader := Leader{pid: id, ballotNum: 0, replicas: replicas, acceptors: acceptors, proposals: make(map[int]string)} //ballot starts at zero - our choice
 	acceptor := Acceptor{pid: id, leaderFacingPort: leaderFacingPort}
 	replica := Replica{pid: id, masterFacingPort: masterFacingPort, commanderFacingPort: commanderFacingPort,
 		chatLog: make(map[int]string), proposals: make(map[int]string), decisions: make(map[int]string)}
