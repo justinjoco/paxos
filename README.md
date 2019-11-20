@@ -1,7 +1,7 @@
 # Paxos in Go
 Authors: Dilip Reddy (dr589), Justin Joco (jaj263), Zhilong Li (zl242)
 
-Slip days used(this project): _  
+Slip days used(this project): 0  
 
 Slip days used(total):
 

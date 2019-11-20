@@ -1,5 +1,8 @@
 #!/usr/bin/env python
-
+"""
+Test program for CS5414 Paxos project with corresponding master.py.
+Developed by the CS5414 course staff; test output format modifications by me
+"""
 import os, time, sys
 from os.path import isfile, join
 import shutil
