@@ -32,7 +32,7 @@ func (self *Acceptor) Run() {
 		}
 		reader := bufio.NewReader(connLeader)
 		message, _ := reader.ReadString('\n')
-		fmt.Println("I am a leader and I have received the message: " + message)
+	//	fmt.Println("I am a leader and I have received the message: " + message)
 		message = strings.TrimSuffix(message, "\n")
 		messageSlice := strings.Split(message, ",")
 		keyWord := messageSlice[0]
@@ -40,7 +40,7 @@ func (self *Acceptor) Run() {
 		retMessage := ""
 		switch keyWord {
 		case "p1a":
-			fmt.Println("I am acceptor " + self.pid + " and I received p1a")
+	//		fmt.Println("I am acceptor " + self.pid + " and I received p1a")
 			//	leaderId := messageSlice[1]  // lambda
 			receivedBallot := messageSlice[2] // b
 			receivedBallotInt, _ := strconv.Atoi(receivedBallot)

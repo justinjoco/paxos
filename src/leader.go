@@ -31,24 +31,24 @@ func (self *Leader) Run(replicaLeaderChannel chan string) {
 		select {
 		case replicaMsg := <-replicaLeaderChannel:
 			fmt.Println("RECEIVED FROM REPLICA:" + replicaMsg)
-			fmt.Println("Is leader " + self.pid + " active?")
-			fmt.Println(self.active)
+	//		fmt.Println("Is leader " + self.pid + " active?")
+	//		fmt.Println(self.active)
 			messageSlice := strings.Split(replicaMsg, " ")
 			if messageSlice[0] == "propose" { // If message from the replica is propose
 				self.slotNum, _ = strconv.Atoi(messageSlice[1])
 				msgId := messageSlice[2]
 				msg := messageSlice[3]
 				proposal := msgId + " " + msg
-				pprime := self.proposals[self.slotNum]
-			//	fmt.Println(pprime == "")
-				if pprime == "" {
+			//	pprime := self.proposals[self.slotNum]
+				fmt.Println(self.proposals[self.slotNum])
+				//if pprime == "" {
 					self.proposals[self.slotNum] = proposal
 					fmt.Println(self.proposals)
 				//	fmt.Println(self.active)
 				//	if self.active {
 						go self.spawnCommander(workerChannel, self.slotNum, proposal)
 				//	}
-				}
+			//	}
 			}
 
 		case workerMsg := <-workerChannel:
@@ -60,39 +60,43 @@ func (self *Leader) Run(replicaLeaderChannel chan string) {
 				pvalues := messageSlice[2:]
 				fmt.Println(pvalues)
 				self.active = true
-				if len(pvalues) > 0 {
+				/*if len(pvalues) > 0 {
 					for _, pvalue := range pvalues {
 						pvalSlice := strings.Split(pvalue, " ")
 						found := false
 						//	receivedBallot := pvalSlice[0]
 						receivedSlot, _ := strconv.Atoi(pvalSlice[1])
 						receivedProposal := pvalSlice[2] + " " + pvalSlice[3]
-						for slot, _ := range self.proposals {
+						proposals := self.proposals
+						for slot, _ := range proposals {
 							if slot == receivedSlot {
 								found = true
 								break
 							}
 						}
 						if !found {
-							self.proposals[receivedSlot] = receivedProposal
+							proposals[receivedSlot] = receivedProposal
+							self.proposals = proposals
 						}
 
-						for slot, proposal := range self.proposals {
+						for slot, proposal := range proposals {
 							go self.spawnCommander(workerChannel, slot, proposal)
 						}
 					}
-				} else {
+				} else {*/
+				/*
 					fmt.Println(self.proposals)
 					if len(self.proposals) == 0 {
 						self.active = true
-						fmt.Println("Leader " + self.pid + " is now active")
+					//	fmt.Println("Leader " + self.pid + " is now active")
 						continue
 					}
-					for slot, proposal := range self.proposals {
+					proposals := self.proposals
+					for slot, proposal := range proposals {
 						go self.spawnCommander(workerChannel, slot, proposal)
-					}
+					}*/
 
-				}
+			//	}
 				
 
 			} else if messageSlice[0] == "preempted" {
@@ -128,6 +132,7 @@ func (self *Leader) spawnScout(workerChannel chan string) {
 		}
 		os.Exit(1)
 	} else {
+		//acceptors := self.acceptors
 		for _, acceptorPort := range self.acceptors {
 			go self.scoutTalkToAcceptor(acceptorPort, scoutAcceptorChannel)
 
@@ -235,6 +240,7 @@ func (self *Leader) spawnCommander(workerChannel chan string, slotNum int, propo
 			os.Exit(1)
 		}
 	} else {
+		//acceptors :=  self.acceptors
 		for _, acceptorPort := range self.acceptors {
 			go self.commTalkToAcceptor(acceptorPort, commAcceptorChannel, slotNum, proposal)
 		}
@@ -271,18 +277,21 @@ func (self *Leader) spawnCommander(workerChannel chan string, slotNum int, propo
 								os.Exit(1)
 							}
 						}
-						fmt.Println("DECISION")
+						fmt.Println("DECISION SENDING")
 						fmt.Println(self.proposals)
-
+						//replicas := self.replicas
 						for _, replicaPort := range self.replicas {
-							replicaConn, _ := net.Dial("tcp", "127.0.0.1:"+replicaPort)
-
+							replicaConn, err := net.Dial("tcp", "127.0.0.1:"+replicaPort)
+							if err != nil{
+								fmt.Println(err)
+								continue
+							}
 							fmt.Fprintf(replicaConn, "decision "+strconv.Itoa(slotNum)+" "+proposal + "\n")
 							//bufio.NewReader(replicaConn).ReadString('\n')
 
 							replicaConn.Close()
 						}
-						
+						workerChannel <- ""
 						break
 					}
 				} else {
