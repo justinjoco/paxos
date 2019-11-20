@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 The master program for CS5414 Paxos project.
-Developed by the CS5414 course staff
+Provided by the CS5414 course staff, custom test folder input by me (Justin)
 """
 
 import os

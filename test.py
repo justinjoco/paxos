@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
-Test program for CS5414 Paxos project with corresponding master.py.
-Developed by the CS5414 course staff; test output format modifications by me
+Test program for CS5414 Paxos project with appropriate master.py.
+Provided by the CS5414 course staff; test output format modifications by me (Justin)
 """
 import os, time, sys
 from os.path import isfile, join
