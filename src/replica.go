@@ -84,10 +84,11 @@ func (self *Replica) Propose(proposal string, replicaLeaderChannel chan string) 
 	if self.decisions[nextSlot] != "" {
 		for k, _ := range self.decisions {
 			if nextSlot < k{
-				nextSlot = k +1
+				nextSlot = k
 			}
 
 		}
+		nextSlot += 1
 		self.slot = nextSlot
 	}
 	
