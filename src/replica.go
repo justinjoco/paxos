@@ -38,12 +38,12 @@ func (self *Replica) Run(replicaLeaderChannel chan string) {
 	
 
 	go self.HandleCommander(lCommander, connMaster, replicaLeaderChannel) // TO listen to decisions by other process's commanders
-	self.Catchup(replicaLeaderChannel)
+	self.SyncDecisions(replicaLeaderChannel)
 	self.HandleMaster(connMaster, replicaLeaderChannel)
 
 }
 
-func (self *Replica) Catchup(replicaLeaderChannel chan string){
+func (self *Replica) SyncDecisions(replicaLeaderChannel chan string){
 	replicaLeaderChannel <- "catchup"
 	numResponse := 0
 	for numResponse < self.n{
@@ -54,10 +54,13 @@ func (self *Replica) Catchup(replicaLeaderChannel chan string){
 				responseSlice := strings.Split(response, ",")
 				
 				for _, decision := range responseSlice {
-					decision := strings.Split(decision, " ")
-					slot, _ := strconv.Atoi(decision[0])
-					msg := decision[1]
-					self.chatLog[slot] = msg
+					decisionSlice := strings.Split(decision, " ")
+					slot, _ := strconv.Atoi(decisionSlice[0])
+					msg := decisionSlice[1]
+					if self.decisions[slot] == ""{
+						self.decisions[slot] = decision
+						self.chatLog[slot] = msg
+					} 
 				}
 
 			}
@@ -71,13 +74,19 @@ func (self *Replica) Catchup(replicaLeaderChannel chan string){
 func (self *Replica) Propose(proposal string, replicaLeaderChannel chan string) {
 	fmt.Println("PROPOSE: " + proposal)
 	nextSlot := self.slot
-	for k, _ := range self.decisions {
-		if nextSlot < k{
-			nextSlot = k +1
+	self.SyncDecisions(replicaLeaderChannel)
+
+	fmt.Println("AFTER SYNCING DECISIONS")
+	fmt.Println(self.decisions)
+	//max := 0
+	if self.decisions[nextSlot] != "" {
+		for k, _ := range self.decisions {
+			if nextSlot < k{
+				nextSlot = k +1
+			}
+
 		}
 	}
-	self.slot = nextSlot
-	fmt.Println(self.decisions)
 	
 	self.proposals[nextSlot] = proposal
 	fmt.Println("NEXT SLOT:" + strconv.Itoa(nextSlot))
