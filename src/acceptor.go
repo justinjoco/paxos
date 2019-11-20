@@ -13,9 +13,12 @@ type Acceptor struct {
 	pid              string
 	leaderFacingPort string
 	currentBallot    int
-	accepted         []string
+	accepted         map[int]string
 }
 
+//Acceptor passive responds to incoming messages from scouts/commanders
+//On p1a, acceptor adopts received ballot if it exceeds current ballot; responds back with current ballot number
+//On p2a, acceptor accepts b,s,p if b >= current ballot; replies with current ballot
 func (self *Acceptor) Run() {
 	fmt.Println("LEADER FACING PORT: " + self.leaderFacingPort)
 	lLeader, _ := net.Listen(CONNECT_TYPE, CONNECT_HOST+":"+self.leaderFacingPort)
@@ -63,11 +66,14 @@ func (self *Acceptor) Run() {
 			fmt.Println(pval)
 			pvalSlice := strings.Split(pval, " ")
 			receivedBallotInt, _ := strconv.Atoi(pvalSlice[0])
+			receivedSlotInt, _ := strconv.Atoi(pvalSlice[1])
 			if receivedBallotInt >= self.currentBallot {
 				self.currentBallot = receivedBallotInt
-				self.accepted = append(self.accepted, pval)
+				self.accepted[receivedSlotInt] = pval
+				//self.accepted = append(self.accepted, pval)
 			}
-
+			fmt.Println(self.pid + " ACCEPTOR ACCEPTED")
+			fmt.Println(self.accepted)
 			retMessage += "p2b," + self.pid + "," + strconv.Itoa(self.currentBallot) + "\n"
 			fmt.Println(retMessage)
 			connLeader.Write([]byte(retMessage))

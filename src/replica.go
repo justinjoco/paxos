@@ -25,7 +25,7 @@ const (
 	CONNECT_TYPE = "tcp"
 )
 
-
+//Wrapper that runs replica
 func (self *Replica) Run(replicaLeaderChannel chan string) {
 
 	lMaster, error := net.Listen(CONNECT_TYPE, CONNECT_HOST+":"+self.masterFacingPort)
@@ -43,6 +43,7 @@ func (self *Replica) Run(replicaLeaderChannel chan string) {
 
 }
 
+//Ping other servers for their decision sets; enacted via leader
 func (self *Replica) SyncDecisions(replicaLeaderChannel chan string){
 	replicaLeaderChannel <- "catchup"
 	numResponse := 0
@@ -71,6 +72,7 @@ func (self *Replica) SyncDecisions(replicaLeaderChannel chan string){
 	
 }
 
+//Propose a given command to all other servers
 func (self *Replica) Propose(proposal string, replicaLeaderChannel chan string) {
 	fmt.Println("PROPOSE: " + proposal)
 	nextSlot := self.slot
@@ -86,6 +88,7 @@ func (self *Replica) Propose(proposal string, replicaLeaderChannel chan string) 
 			}
 
 		}
+		self.slot = nextSlot
 	}
 	
 	self.proposals[nextSlot] = proposal
@@ -94,6 +97,7 @@ func (self *Replica) Propose(proposal string, replicaLeaderChannel chan string) 
 	replicaLeaderChannel <- msgToLeader
 }
 
+//Applies everything in decisions onto chatlog
 func (self *Replica) Perform(proposal string, connMaster net.Conn) {
 	
 	
@@ -118,7 +122,7 @@ func (self *Replica) Perform(proposal string, connMaster net.Conn) {
 
 }
 
-
+//Replica responds to commander decision or sync messages
 func (self *Replica) HandleCommander(lCommander net.Listener, connMaster net.Conn, replicaLeaderChannel chan string) {
 	defer lCommander.Close()
 
@@ -174,6 +178,7 @@ func (self *Replica) HandleCommander(lCommander net.Listener, connMaster net.Con
 
 }
 
+//Handle master commands; run Paxos on msg requests, crashes when told to do so
 func (self *Replica) HandleMaster(connMaster net.Conn, replicaLeaderChannel chan string) {
 	msgId := ""
 	msg := ""

@@ -1,3 +1,4 @@
+
 package main
 
 import (
@@ -21,23 +22,27 @@ func main() {
 
 	replicaLeaderChannel := make(chan string)
 	leaderFacingPort := strconv.Itoa(20000 + id_num)
-	commanderFacingPort := strconv.Itoa(20100 + id_num)
+	commanderFacingPort := strconv.Itoa(25000 + id_num)
 
-	var acceptors []string
-	var replicas []string
+	acceptors := make(map[int]string)
+	replicas := make(map[int]string)
 
+	
 	for i := 0; i < n; i++ {
 		acceptorStr := strconv.Itoa(20000 + i)
-		acceptors = append(acceptors, acceptorStr)
-		replicaStr := strconv.Itoa(20100 + i)
-		replicas = append(replicas, replicaStr)
+		acceptors[i] = acceptorStr
+		replicaStr := strconv.Itoa(25000 + i)
+		replicas[i] = replicaStr
 	}
 
+	//Set up leader, acceptor, replica structs
 	leader := Leader{pid: pid, ballotNum: 0, replicas: replicas, acceptors: acceptors, proposals: make(map[int]string)} //ballot starts at zero - our choice
-	acceptor := Acceptor{pid: pid, leaderFacingPort: leaderFacingPort, currentBallot:-1}
+	acceptor := Acceptor{pid: pid, leaderFacingPort: leaderFacingPort, currentBallot:-1, accepted: make(map[int]string)}
 	replica := Replica{pid: pid, masterFacingPort: masterFacingPort, commanderFacingPort: commanderFacingPort,
 		chatLog: make(map[int]string), proposals: make(map[int]string), decisions: make(map[int]string), n:n}
 
+	//Run acceptor and replica on separate go routines; leader is on main goroutine.
+	//Replica and leader talk to each other via channel
 	go acceptor.Run()
 	go replica.Run(replicaLeaderChannel) 
 	leader.Run(replicaLeaderChannel)

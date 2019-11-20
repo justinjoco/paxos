@@ -10,9 +10,9 @@ import (
 )
 
 type Leader struct {
-	pid       string
-	replicas  []string
-	acceptors []string
+	pid         string
+	replicas    map[int]string
+	acceptors   map[int]string
 	proposals   map[int]string
 	ballotNum   int
 	active      bool
@@ -20,6 +20,7 @@ type Leader struct {
 	slotNum     int
 }
 
+//Spawns scout on startup, spawns commander on a proposal or adopted msg from scout
 func (self *Leader) Run(replicaLeaderChannel chan string) {
 	self.active = false
 	workerChannel := make(chan string)
@@ -91,7 +92,7 @@ func (self *Leader) Run(replicaLeaderChannel chan string) {
 
 
 
-
+//Spawn a scout to get other acceptors to accept ballot number, tells leader if ballot is preempted
 func (self *Leader) spawnScout(workerChannel chan string) {
 	pvalues := make([]string, 0)
 	
@@ -104,7 +105,7 @@ func (self *Leader) spawnScout(workerChannel chan string) {
 		}
 		for _, acceptorId := range crashAfterSentTo {
 			acceptorIdInt, _ := strconv.Atoi(acceptorId)
-			acceptorPort := strconv.Itoa(acceptorIdInt + 20000)
+			acceptorPort := self.acceptors[acceptorIdInt]
 			acceptorConn, _ := net.Dial("tcp", "127.0.0.1:"+acceptorPort)
 			fmt.Fprintf(acceptorConn, "p1a,"+self.pid+","+strconv.Itoa(self.ballotNum)+"\n")
 			//acceptorConn.Close()
@@ -167,7 +168,7 @@ func (self *Leader) spawnScout(workerChannel chan string) {
 	}
 
 }
-
+//Spawn a commander to get acceptor to accept proposal
 func (self *Leader) spawnCommander(workerChannel chan string, slotNum int, proposal string) {
 	// alive := self.aliveAcceptors
 	fmt.Println("PID:" + self.pid + " COMMANDER SPAWNED")
@@ -179,7 +180,7 @@ func (self *Leader) spawnCommander(workerChannel chan string, slotNum int, propo
 		} else {
 			for _, acceptorId := range crashAfterSentTo {
 				acceptorIdInt, _ := strconv.Atoi(acceptorId)
-				acceptorPort := strconv.Itoa(acceptorIdInt + 20000)
+				acceptorPort := self.acceptors[acceptorIdInt]
 				acceptorConn, _ := net.Dial("tcp", "127.0.0.1:"+acceptorPort)
 				fmt.Fprintf(acceptorConn, "p2a,"+self.pid+","+strconv.Itoa(self.ballotNum)+" "+strconv.Itoa(slotNum)+" "+proposal+"\n")
 			//	acceptorConn.Close()
@@ -214,7 +215,7 @@ func (self *Leader) spawnCommander(workerChannel chan string, slotNum int, propo
 							} else {
 								for _, replicaId := range crashAfterSentTo {
 									replicaIdInt, _ := strconv.Atoi(replicaId)
-									replicaPort := strconv.Itoa(replicaIdInt + 20100)
+									replicaPort := self.replicas[replicaIdInt]
 									replicaConn, _ := net.Dial("tcp", "127.0.0.1:"+replicaPort)
 									fmt.Fprintf(replicaConn, "decision,"+strconv.Itoa(slotNum)+","+proposal+"\n")
 									//replicaConn.Close()
@@ -253,7 +254,7 @@ func (self *Leader) spawnCommander(workerChannel chan string, slotNum int, propo
 
 }
 
-
+//Scout talks to one acceptor; tells leader the acceptor's response
 func (self *Leader) scoutTalkToAcceptor(processPort string, scoutAcceptorChannel chan string) {
 	fmt.Println("Scout is talking to this acceptor: " + processPort)
 	acceptorConn, err := net.Dial("tcp", "127.0.0.1:"+processPort)
@@ -269,6 +270,7 @@ func (self *Leader) scoutTalkToAcceptor(processPort string, scoutAcceptorChannel
 	scoutAcceptorChannel <- response
 }
 
+//Commander talks to one acceptor; tells leader the acceptor's response
 func (self *Leader) commTalkToAcceptor(processPort string, commAcceptorChannel chan string, slotNum int, proposal string) {
 	acceptorConn, err := net.Dial("tcp", "127.0.0.1:"+processPort)
 	if err != nil {
