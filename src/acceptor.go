@@ -21,7 +21,6 @@ func (self *Acceptor) Run() {
 	lLeader, _ := net.Listen(CONNECT_TYPE, CONNECT_HOST+":"+self.leaderFacingPort)
 
 	defer lLeader.Close()
-	//	msg := ""
 
 	for {
 		connLeader, err := lLeader.Accept()
@@ -32,16 +31,15 @@ func (self *Acceptor) Run() {
 		}
 		reader := bufio.NewReader(connLeader)
 		message, _ := reader.ReadString('\n')
-	//	fmt.Println("I am a leader and I have received the message: " + message)
+	
 		message = strings.TrimSuffix(message, "\n")
 		messageSlice := strings.Split(message, ",")
 		keyWord := messageSlice[0]
-		//fmt.Println(keyWord)
+
 		retMessage := ""
 		switch keyWord {
 		case "p1a":
-	//		fmt.Println("I am acceptor " + self.pid + " and I received p1a")
-			//	leaderId := messageSlice[1]  // lambda
+
 			receivedBallot := messageSlice[2] // b
 			receivedBallotInt, _ := strconv.Atoi(receivedBallot)
 			if receivedBallotInt > self.currentBallot {
@@ -60,7 +58,7 @@ func (self *Acceptor) Run() {
 			}
 
 		case "p2a":
-			//	leaderId := messageSlice[1]  // lambda
+		
 			pval := messageSlice[2]
 			fmt.Println(pval)
 			pvalSlice := strings.Split(pval, " ")
@@ -77,9 +75,7 @@ func (self *Acceptor) Run() {
 			if crashStage == "p2b" {
 				os.Exit(1)
 			}
-		//case "ping":
-			//fmt.Println("SEND BACK PID")
-		//	connLeader.Write([]byte(self.pid))
+
 		default:
 			retMessage += "Invalid keyword, must be p1a or p2a or ping"
 			connLeader.Write([]byte(retMessage + "\n"))
@@ -90,4 +86,3 @@ func (self *Acceptor) Run() {
 
 }
 
-//Heartbeat should hhappen here

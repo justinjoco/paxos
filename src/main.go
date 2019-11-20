@@ -1,56 +1,14 @@
 package main
 
 import (
-	//	"bufio"
-	//	"net"
 	"os"
 	"strconv"
-	//	"fmt"
-	//	"time"
 )
 
 var crashStage string
 var crashAfterSentTo []string
 
-/*
 
- func Heartbeat(pid string, leaderFacingPort string, n int, acceptors []string) { //maintain alive list; calculate the majority
-
- //	fmt.Println(acceptors)
- 	tempAlive := make([]string, 0)
- 	for {
-
- 		tempAlive = tempAlive[:0]
-
- 		for _, otherPort := range acceptors {
- 			//fmt.Println(otherPort)
- 				if otherPort != leaderFacingPort {
-	 				acceptorConn, err := net.Dial("tcp", "127.0.0.1:"+otherPort)
-	 				if err != nil {
-	 					fmt.Println(err)
-	 					continue
-					}
-
-	 				fmt.Fprintf(acceptorConn, "ping\n")
-	 				reader := bufio.NewReader(acceptorConn)
-	 				response, _ := reader.ReadString('\n')
-	 		//		fmt.Println(response)
-	 				tempAlive = append(tempAlive, response)
-	 				acceptorConn.Close()
- 				}
-			}
-		tempAlive = append(tempAlive, pid)
- 		fmt.Println("PID:" + pid)
- 		fmt.Println(tempAlive)
- 		if len(tempAlive) == n {
- 			break
- 		}
-
- 		time.Sleep(500 * time.Millisecond)
- 	}
- }
-
-*/
 
 func main() {
 
@@ -78,13 +36,10 @@ func main() {
 	leader := Leader{pid: pid, ballotNum: 0, replicas: replicas, acceptors: acceptors, proposals: make(map[int]string)} //ballot starts at zero - our choice
 	acceptor := Acceptor{pid: pid, leaderFacingPort: leaderFacingPort, currentBallot:-1}
 	replica := Replica{pid: pid, masterFacingPort: masterFacingPort, commanderFacingPort: commanderFacingPort,
-		chatLog: make(map[int]string), proposals: make(map[int]string), decisions: make(map[int]string)}
+		chatLog: make(map[int]string), proposals: make(map[int]string), decisions: make(map[int]string), n:n}
 
 	go acceptor.Run()
-	go replica.Run(replicaLeaderChannel) //Leader runs on main; others are parallel go routines (threads)
-
-	//	Heartbeat(pid, leaderFacingPort, n, acceptors)
-	//	fmt.Println("ALL ALIVE")
+	go replica.Run(replicaLeaderChannel) 
 	leader.Run(replicaLeaderChannel)
 
 	os.Exit(0)
