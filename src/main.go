@@ -1,12 +1,12 @@
 package main
 
 import (
-//	"bufio"
-//	"net"
+	//	"bufio"
+	//	"net"
 	"os"
 	"strconv"
-//	"fmt"
-//	"time"
+	//	"fmt"
+	//	"time"
 )
 
 var crashStage string
@@ -44,7 +44,7 @@ var crashAfterSentTo []string
  		fmt.Println(tempAlive)
  		if len(tempAlive) == n {
  			break
- 		} 
+ 		}
 
  		time.Sleep(500 * time.Millisecond)
  	}
@@ -82,11 +82,10 @@ func main() {
 
 	go acceptor.Run()
 	go replica.Run(replicaLeaderChannel) //Leader runs on main; others are parallel go routines (threads)
-	
-//	Heartbeat(pid, leaderFacingPort, n, acceptors)
-//	fmt.Println("ALL ALIVE")
+
+	//	Heartbeat(pid, leaderFacingPort, n, acceptors)
+	//	fmt.Println("ALL ALIVE")
 	leader.Run(replicaLeaderChannel)
-	
 
 	os.Exit(0)
 

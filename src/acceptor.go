@@ -2,11 +2,11 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"net"
 	"os"
 	"strconv"
 	"strings"
-	"fmt"
 )
 
 type Acceptor struct {
@@ -22,21 +22,17 @@ func (self *Acceptor) Run() {
 
 	defer lLeader.Close()
 	//	msg := ""
-	
-//	if err != nil {
-	//	fmt.Println("error while accepting connection")
-		//continue
-//	}
-	//reader := bufio.NewReader(connLeader)
+
 	for {
 		connLeader, err := lLeader.Accept()
 		if err != nil {
-			fmt.Println("error while accepting connection")
+			fmt.Println("error from acceptor: ")
+			fmt.Println(err)
 			continue
 		}
 		reader := bufio.NewReader(connLeader)
 		message, _ := reader.ReadString('\n')
-		fmt.Println(message)
+		fmt.Println("I am a leader and I have received the message: " + message)
 		message = strings.TrimSuffix(message, "\n")
 		messageSlice := strings.Split(message, ",")
 		keyWord := messageSlice[0]
@@ -44,6 +40,7 @@ func (self *Acceptor) Run() {
 		retMessage := ""
 		switch keyWord {
 		case "p1a":
+			fmt.Println("I am acceptor " + self.pid + " and I received p1a")
 			//	leaderId := messageSlice[1]  // lambda
 			receivedBallot := messageSlice[2] // b
 			receivedBallotInt, _ := strconv.Atoi(receivedBallot)
@@ -72,9 +69,11 @@ func (self *Acceptor) Run() {
 				self.currentBallot = receivedBallotInt
 				self.accepted = append(self.accepted, pval)
 			}
+
 			retMessage += "p2b," + self.pid + "," + strconv.Itoa(self.currentBallot) + "\n"
 			fmt.Println(retMessage)
 			connLeader.Write([]byte(retMessage))
+
 			if crashStage == "p2b" {
 				os.Exit(1)
 			}
@@ -83,7 +82,7 @@ func (self *Acceptor) Run() {
 		//	connLeader.Write([]byte(self.pid))
 		default:
 			retMessage += "Invalid keyword, must be p1a or p2a or ping"
-			connLeader.Write([]byte(retMessage+ "\n"))
+			connLeader.Write([]byte(retMessage + "\n"))
 
 		}
 		connLeader.Close()
