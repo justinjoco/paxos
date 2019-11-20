@@ -92,6 +92,7 @@ def main(test_directory = "tests"):
         print("Tests failed:")
         for test in tests_failed:
             print("  " + test)
+    print("")
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:

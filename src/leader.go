@@ -25,7 +25,7 @@ func (self *Leader) Run(replicaLeaderChannel chan string) {
 	self.active = false
 	workerChannel := make(chan string)
 
-	go self.spawnScout(workerChannel)
+	go self.SpawnScout(workerChannel)
 	for {
 
 		select {
@@ -44,7 +44,7 @@ func (self *Leader) Run(replicaLeaderChannel chan string) {
 				self.proposals[self.slotNum] = proposal
 				fmt.Println(self.proposals)
 			
-				go self.spawnCommander(workerChannel, self.slotNum, proposal)
+				go self.SpawnCommander(workerChannel, self.slotNum, proposal)
 
 			} else if messageSlice[0] == "catchup" {
 				fmt.Println("SEND CATCHUP")
@@ -82,7 +82,7 @@ func (self *Leader) Run(replicaLeaderChannel chan string) {
 				if bprime > self.ballotNum {
 					self.active = false
 					self.ballotNum = bprime + 1
-					go self.spawnScout(workerChannel)
+					go self.SpawnScout(workerChannel)
 				}
 
 			}
@@ -93,7 +93,7 @@ func (self *Leader) Run(replicaLeaderChannel chan string) {
 
 
 //Spawn a scout to get other acceptors to accept ballot number, tells leader if ballot is preempted
-func (self *Leader) spawnScout(workerChannel chan string) {
+func (self *Leader) SpawnScout(workerChannel chan string) {
 	pvalues := make([]string, 0)
 	
 	fmt.Println("PID:" + self.pid + " SCOUT SPAWNED")
@@ -114,7 +114,7 @@ func (self *Leader) spawnScout(workerChannel chan string) {
 	} else {
 	
 		for _, acceptorPort := range self.acceptors {
-			go self.scoutTalkToAcceptor(acceptorPort, scoutAcceptorChannel)
+			go self.ScoutTalkToAcceptor(acceptorPort, scoutAcceptorChannel)
 
 		}
 	}
@@ -169,7 +169,7 @@ func (self *Leader) spawnScout(workerChannel chan string) {
 
 }
 //Spawn a commander to get acceptor to accept proposal
-func (self *Leader) spawnCommander(workerChannel chan string, slotNum int, proposal string) {
+func (self *Leader) SpawnCommander(workerChannel chan string, slotNum int, proposal string) {
 	// alive := self.aliveAcceptors
 	fmt.Println("PID:" + self.pid + " COMMANDER SPAWNED")
 	majorityNum := len(self.acceptors)/2 + 1
@@ -189,7 +189,7 @@ func (self *Leader) spawnCommander(workerChannel chan string, slotNum int, propo
 		}
 	} else {
 		for _, acceptorPort := range self.acceptors {
-			go self.commTalkToAcceptor(acceptorPort, commAcceptorChannel, slotNum, proposal)
+			go self.CommTalkToAcceptor(acceptorPort, commAcceptorChannel, slotNum, proposal)
 		}
 	}
 
@@ -255,7 +255,7 @@ func (self *Leader) spawnCommander(workerChannel chan string, slotNum int, propo
 }
 
 //Scout talks to one acceptor; tells leader the acceptor's response
-func (self *Leader) scoutTalkToAcceptor(processPort string, scoutAcceptorChannel chan string) {
+func (self *Leader) ScoutTalkToAcceptor(processPort string, scoutAcceptorChannel chan string) {
 	fmt.Println("Scout is talking to this acceptor: " + processPort)
 	acceptorConn, err := net.Dial("tcp", "127.0.0.1:"+processPort)
 	if err != nil {
@@ -271,7 +271,7 @@ func (self *Leader) scoutTalkToAcceptor(processPort string, scoutAcceptorChannel
 }
 
 //Commander talks to one acceptor; tells leader the acceptor's response
-func (self *Leader) commTalkToAcceptor(processPort string, commAcceptorChannel chan string, slotNum int, proposal string) {
+func (self *Leader) CommTalkToAcceptor(processPort string, commAcceptorChannel chan string, slotNum int, proposal string) {
 	acceptorConn, err := net.Dial("tcp", "127.0.0.1:"+processPort)
 	if err != nil {
 		fmt.Println(err)
