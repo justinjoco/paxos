@@ -38,11 +38,14 @@ func (self *Leader) Run(replicaLeaderChannel chan string) {
 				msg := messageSlice[3]
 				proposal := msgId + " " + msg
 				pprime := self.proposals[self.slotNum]
+			//	fmt.Println(pprime == "")
 				if pprime == "" {
 					self.proposals[self.slotNum] = proposal
-					if self.active {
+					fmt.Println(self.proposals)
+				//	fmt.Println(self.active)
+				//	if self.active {
 						go self.spawnCommander(workerChannel, self.slotNum, proposal)
-					}
+				//	}
 				}
 			}
 
@@ -54,6 +57,7 @@ func (self *Leader) Run(replicaLeaderChannel chan string) {
 				//fmt.Println
 				pvalues := messageSlice[2:]
 				fmt.Println(pvalues)
+				self.active = true
 				if len(pvalues) > 0 {
 					for _, pvalue := range pvalues {
 						pvalSlice := strings.Split(pvalue, " ")
@@ -75,16 +79,11 @@ func (self *Leader) Run(replicaLeaderChannel chan string) {
 							go self.spawnCommander(workerChannel, slot, proposal)
 						}
 					}
-				}else{
-					fmt.Println(self.proposals)
-					for slot, proposal := range self.proposals {
-						go self.spawnCommander(workerChannel, slot, proposal)
-					}
 				}
-				self.active = true
+				
 
 			} else if messageSlice[0] == "preempted" {
-
+				fmt.Println("PREEMPTED")
 				bprime, _ := strconv.Atoi(messageSlice[1]) //rprime in paper
 				if bprime > self.ballotNum {
 					self.active = false
@@ -156,6 +155,7 @@ func (self *Leader) spawnScout(workerChannel chan string) {
 						}
 
 						workerChannel <- "adopted," + strconv.Itoa(self.ballotNum) + pvalStr
+						counter = 0
 						break
 					}
 
@@ -231,14 +231,18 @@ func (self *Leader) spawnCommander(workerChannel chan string, slotNum int, propo
 	for {
 		select {
 		case response := <-commAcceptorChannel:
+			fmt.Println(response)
 			responseSlice := strings.Split(response, ",")
 			keyWord := responseSlice[0]
 			if keyWord == "p2b" {
 				//		acceptorId := responseSlice[1]
 				acceptorBallotInt, _ := strconv.Atoi(responseSlice[2])
+				fmt.Println("ACCEPTOR BALLOT INT:"+ string(responseSlice[2]))
 				if acceptorBallotInt == self.ballotNum {
 					counter += 1
+					fmt.Println(counter)
 					if counter >= majorityNum {
+						counter = 0
 						if crashStage == "decision" {
 							if len(crashAfterSentTo) == 0 {
 								os.Exit(1)
@@ -254,15 +258,20 @@ func (self *Leader) spawnCommander(workerChannel chan string, slotNum int, propo
 								os.Exit(1)
 							}
 						}
+						fmt.Println("DECISION")
+						fmt.Println(self.proposals)
+
 						for _, replicaPort := range self.replicas {
 							replicaConn, _ := net.Dial("tcp", "127.0.0.1:"+replicaPort)
-							fmt.Fprintf(replicaConn, "decision,"+strconv.Itoa(slotNum)+","+proposal + "\n")
-							bufio.NewReader(replicaConn).ReadString('\n')
+							fmt.Fprintf(replicaConn, "decision "+strconv.Itoa(slotNum)+" "+proposal + "\n")
+							//bufio.NewReader(replicaConn).ReadString('\n')
 							replicaConn.Close()
 						}
+						
 						break
 					}
 				} else {
+
 					workerChannel <- "preempted," + responseSlice[2]
 					break
 				}

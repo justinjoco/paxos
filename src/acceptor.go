@@ -48,6 +48,7 @@ func (self *Acceptor) Run() {
 			receivedBallot := messageSlice[2] // b
 			receivedBallotInt, _ := strconv.Atoi(receivedBallot)
 			if receivedBallotInt > self.currentBallot {
+				fmt.Println("ACCEPTED NEW BALLOT: " + receivedBallot)
 				self.currentBallot = receivedBallotInt
 			}
 			retMessage += "p1b," + self.pid + "," + strconv.Itoa(self.currentBallot)
@@ -64,20 +65,22 @@ func (self *Acceptor) Run() {
 		case "p2a":
 			//	leaderId := messageSlice[1]  // lambda
 			pval := messageSlice[2]
+			fmt.Println(pval)
 			pvalSlice := strings.Split(pval, " ")
 			receivedBallotInt, _ := strconv.Atoi(pvalSlice[0])
 			if receivedBallotInt >= self.currentBallot {
 				self.currentBallot = receivedBallotInt
 				self.accepted = append(self.accepted, pval)
 			}
-			retMessage += "p2b," + self.pid + "," + strconv.Itoa(self.currentBallot)
-			connLeader.Write([]byte(retMessage+ "\n"))
+			retMessage += "p2b," + self.pid + "," + strconv.Itoa(self.currentBallot) + "\n"
+			fmt.Println(retMessage)
+			connLeader.Write([]byte(retMessage))
 			if crashStage == "p2b" {
 				os.Exit(1)
 			}
-		case "ping":
+		//case "ping":
 			//fmt.Println("SEND BACK PID")
-			connLeader.Write([]byte(self.pid))
+		//	connLeader.Write([]byte(self.pid))
 		default:
 			retMessage += "Invalid keyword, must be p1a or p2a or ping"
 			connLeader.Write([]byte(retMessage+ "\n"))

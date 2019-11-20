@@ -116,12 +116,16 @@ func (self *Replica) HandleCommander(lCommander net.Listener, connMaster net.Con
 		retMessage := ""
 		switch keyWord {
 		case "decision":
+			fmt.Println(message)
 			slotNum := messageSlice[1] // s
-			command := messageSlice[2] // p
+			command := strings.Join(messageSlice[2:], " ") // p
 			slotInt, _ := strconv.Atoi(slotNum)
+			
+			fmt.Println(self.pid + " RECEIVED DECISION")
 			self.decisions[slotInt] = command
+			fmt.Println(self.decisions)
 			for {
-				pprime := self.decisions[self.slot]
+				pprime := self.decisions[slotInt]
 				if pprime == "" {
 					break
 				}
