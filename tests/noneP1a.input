@@ -9,3 +9,4 @@
 3 waitForAck 1
 2 get chatLog
 3 get chatLog
+exit
