@@ -36,9 +36,10 @@ func (self *Replica) Run(replicaLeaderChannel chan string) {
 	}
 	connMaster, error := lMaster.Accept()
 	
-
 	go self.HandleCommander(lCommander, connMaster, replicaLeaderChannel) // TO listen to decisions by other process's commanders
+	
 	self.SyncDecisions(replicaLeaderChannel)
+	
 	self.HandleMaster(connMaster, replicaLeaderChannel)
 
 }
@@ -50,8 +51,7 @@ func (self *Replica) SyncDecisions(replicaLeaderChannel chan string){
 	for numResponse < self.n{
 	select {
 		case response := <- replicaLeaderChannel:
-			fmt.Println("GOT A RESPONSE OR NOT")
-			if response != "" {
+			if response != ""  && response !=  "\n" {
 				responseSlice := strings.Split(response, ",")
 				
 				for _, decision := range responseSlice {
@@ -63,37 +63,35 @@ func (self *Replica) SyncDecisions(replicaLeaderChannel chan string){
 						self.chatLog[slot] = msg
 					} 
 				}
-
+				
 			}
 			numResponse +=1
 		}
 	}
-
 	
 }
 
 //Propose a given command to all other servers
 func (self *Replica) Propose(proposal string, replicaLeaderChannel chan string) {
-	fmt.Println("PROPOSE: " + proposal)
 	nextSlot := self.slot
 	self.SyncDecisions(replicaLeaderChannel)
 
-	fmt.Println("AFTER SYNCING DECISIONS")
-	fmt.Println(self.decisions)
-	//max := 0
-	if self.decisions[nextSlot] != "" {
-		for k, _ := range self.decisions {
-			if nextSlot < k{
-				nextSlot = k
-			}
 
+	slotFound := false
+	for k, _ := range self.decisions {
+		if nextSlot <= k{
+			nextSlot = k
+			slotFound = true
 		}
+
+	}
+	if slotFound {
 		nextSlot += 1
 		self.slot = nextSlot
 	}
-	
+
 	self.proposals[nextSlot] = proposal
-	fmt.Println("NEXT SLOT:" + strconv.Itoa(nextSlot))
+	
 	msgToLeader := "propose " + strconv.Itoa(nextSlot) + " " + proposal //send proposal to leader
 	replicaLeaderChannel <- msgToLeader
 }
@@ -101,9 +99,7 @@ func (self *Replica) Propose(proposal string, replicaLeaderChannel chan string) 
 //Applies everything in decisions onto chatlog
 func (self *Replica) Perform(proposal string, connMaster net.Conn) {
 	
-	
-	for s, p := range self.decisions {
-		
+	for s, p := range self.decisions {	
 		pSlice := strings.Split(p, " ")
 		self.chatLog[s] = pSlice[1]
 		
@@ -136,46 +132,42 @@ func (self *Replica) HandleCommander(lCommander net.Listener, connMaster net.Con
 		}
 		reader := bufio.NewReader(connCommander)
 		message, _ := reader.ReadString('\n')
-		fmt.Println(message)
 		message = strings.TrimSuffix(message, "\n")
 		messageSlice := strings.Split(message, " ")
 		keyWord := messageSlice[0]
 
 		retMessage := ""
 		switch keyWord {
-		case "decision":
-			fmt.Println(message)
-			slotNum := messageSlice[1] // s
-			command := strings.Join(messageSlice[2:], " ") // p
-			slotInt, _ := strconv.Atoi(slotNum)
-			
-			fmt.Println(self.pid + " RECEIVED DECISION")
-			self.decisions[slotInt] = command
-			fmt.Println(self.decisions)
+			case "decision":
 
-			self.Perform(command, connMaster)
-		case "catchup":
-			fmt.Println("RECEIVED CATCHUP")
-			decisionSlice := make([]string, 0)
-			retMessage := ""
-			if len(self.decisions) > 0{ 
-				for _, decision := range self.decisions {
-					decisionSlice = append(decisionSlice, decision)
+				slotNum := messageSlice[1] // s
+				command := strings.Join(messageSlice[2:], " ") // p
+				slotInt, _ := strconv.Atoi(slotNum)
+				self.decisions[slotInt] = command
+
+				self.Perform(command, connMaster)
+
+			case "catchup":
+
+				decisionSlice := make([]string, 0)
+				retMessage := ""
+				if len(self.decisions) > 0{ 
+					for _, decision := range self.decisions {
+						decisionSlice = append(decisionSlice, decision)
+					}
+					retMessage += strings.Join(decisionSlice,",")
 				}
-				retMessage += strings.Join(decisionSlice,",")
-			}
-			fmt.Println("CATCHUP RETURN MSG:" + retMessage)
-			connCommander.Write([]byte(retMessage + "\n"))
 
-		default:
+				connCommander.Write([]byte(retMessage + "\n"))
 
-			retMessage += "Invalid keyword, mustbe decision"
-			connCommander.Write([]byte(retMessage+ "\n") )
+			default:
+				retMessage += "Invalid keyword, mustbe decision"
+				connCommander.Write([]byte(retMessage+ "\n") )
 
 		}
+
 		connCommander.Close()
 	}
-
 
 }
 
@@ -184,23 +176,20 @@ func (self *Replica) HandleMaster(connMaster net.Conn, replicaLeaderChannel chan
 	msgId := ""
 	msg := ""
 	reader := bufio.NewReader(connMaster)
-
 	for {
 	
-
 		request, _ := reader.ReadString('\n')
-
 		request = strings.TrimSuffix(request, "\n")
 		requestSlice := strings.Split(request, " ")
 		command := requestSlice[0]
-		fmt.Println("PID:"+ self.pid + " " + request)
+
 		retMessage := ""
 
 		switch command {
 			case "msg":
 				msgId = requestSlice[1]
 				self.slot, _ = strconv.Atoi(msgId)
-				fmt.Println("SLOT: " + strconv.Itoa(self.slot))
+
 				msg = requestSlice[2]
 				found := false
 				foundSlot := -1
@@ -228,8 +217,7 @@ func (self *Replica) HandleMaster(connMaster net.Conn, replicaLeaderChannel chan
 				
 			case "get":
 				retMessage += "chatLog "
-				fmt.Println(self.pid + " CHATLOG")
-				fmt.Println(self.chatLog)
+
 				removeComma := 0
 				counter := 0
 				for i := 0; i <= 100; i++ {
@@ -272,7 +260,6 @@ func (self *Replica) HandleMaster(connMaster net.Conn, replicaLeaderChannel chan
 
 	}
 
-	connMaster.Close()
 
 }
 

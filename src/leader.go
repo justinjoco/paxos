@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Leader struct {
@@ -20,72 +21,61 @@ type Leader struct {
 	slotNum     int
 }
 
-//Spawns scout on startup, spawns commander on a proposal or adopted msg from scout
+//Spawns scout on proposal, spawns commander on adopted msg from scout
 func (self *Leader) Run(replicaLeaderChannel chan string) {
 	self.active = false
 	workerChannel := make(chan string)
 
-	go self.SpawnScout(workerChannel)
 	for {
 
 		select {
-		case replicaMsg := <-replicaLeaderChannel:
-			fmt.Println("RECEIVED FROM REPLICA:" + replicaMsg)
-	
-			messageSlice := strings.Split(replicaMsg, " ")
-			if messageSlice[0] == "propose" { // If message from the replica is propose
-				self.slotNum, _ = strconv.Atoi(messageSlice[1])
-				msgId := messageSlice[2]
-				msg := messageSlice[3]
-				proposal := msgId + " " + msg
-			
-				fmt.Println(self.proposals[self.slotNum])
-				
-				self.proposals[self.slotNum] = proposal
-				fmt.Println(self.proposals)
-			
-				go self.SpawnCommander(workerChannel, self.slotNum, proposal)
 
-			} else if messageSlice[0] == "catchup" {
-				fmt.Println("SEND CATCHUP")
-				for _, replicaPort := range self.replicas {
-					replicaConn, err := net.Dial("tcp", "127.0.0.1:"+replicaPort)
-					if err != nil{
-						fmt.Println(err)
-						replicaLeaderChannel <- ""
-						continue
-					}
-					fmt.Fprintf(replicaConn, "catchup\n")
-					response, _ := bufio.NewReader(replicaConn).ReadString('\n')
-					response = strings.TrimSuffix(response, "\n")
-					replicaLeaderChannel <- response
-				//	replicaConn.Close()
-				}
+			case replicaMsg := <-replicaLeaderChannel:
 
-			}
+				messageSlice := strings.Split(replicaMsg, " ")
+				if messageSlice[0] == "propose" { // If message from the replica is propose
+					self.slotNum, _ = strconv.Atoi(messageSlice[1])
+					msgId := messageSlice[2]
+					msg := messageSlice[3]
+					proposal := msgId + " " + msg		
+					self.proposals[self.slotNum] = proposal
 
-		case workerMsg := <-workerChannel:
-			fmt.Println("RECEIVED FROM WORKER:" + workerMsg)
-			messageSlice := strings.Split(workerMsg, ",")
-
-			if messageSlice[0] == "adopted" {
-			
-				pvalues := messageSlice[2:]
-				fmt.Println(pvalues)
-				self.active = true
-				
-				
-
-			} else if messageSlice[0] == "preempted" {
-				fmt.Println("PREEMPTED")
-				bprime, _ := strconv.Atoi(messageSlice[1]) //rprime in paper
-				if bprime > self.ballotNum {
-					self.active = false
-					self.ballotNum = bprime + 1
 					go self.SpawnScout(workerChannel)
+				
+
+				} else if messageSlice[0] == "catchup" {
+					for _, replicaPort := range self.replicas {
+						replicaConn, err := net.Dial("tcp", "127.0.0.1:"+replicaPort)
+						if err != nil{
+							fmt.Println(err)
+							replicaLeaderChannel <- ""
+							continue
+						}
+						fmt.Fprintf(replicaConn, "catchup\n")
+						response, _ := bufio.NewReader(replicaConn).ReadString('\n')
+						response = strings.TrimSuffix(response, "\n")
+						replicaLeaderChannel <- response
+				
+					}
+
 				}
 
-			}
+			case workerMsg := <-workerChannel:
+				messageSlice := strings.Split(workerMsg, ",")
+
+				if messageSlice[0] == "adopted" {
+
+					go self.SpawnCommander(workerChannel, self.slotNum, self.proposals[self.slotNum])
+					
+
+				} else if messageSlice[0] == "preempted" {
+					bprime, _ := strconv.Atoi(messageSlice[1]) //rprime in paper
+					if bprime > self.ballotNum {
+						self.ballotNum = bprime + 1
+						go self.SpawnScout(workerChannel)
+					}
+
+				}
 		}
 	}
 }
@@ -95,8 +85,6 @@ func (self *Leader) Run(replicaLeaderChannel chan string) {
 //Spawn a scout to get other acceptors to accept ballot number, tells leader if ballot is preempted
 func (self *Leader) SpawnScout(workerChannel chan string) {
 	pvalues := make([]string, 0)
-	
-	fmt.Println("PID:" + self.pid + " SCOUT SPAWNED")
 	majorityNum := len(self.acceptors)/2 + 1
 	scoutAcceptorChannel := make(chan string)
 	if crashStage == "p1a" {
@@ -108,73 +96,84 @@ func (self *Leader) SpawnScout(workerChannel chan string) {
 			acceptorPort := self.acceptors[acceptorIdInt]
 			acceptorConn, _ := net.Dial("tcp", "127.0.0.1:"+acceptorPort)
 			fmt.Fprintf(acceptorConn, "p1a,"+self.pid+","+strconv.Itoa(self.ballotNum)+"\n")
-			//acceptorConn.Close()
+			
 		}
 		os.Exit(1)
-	} else {
+	} 
 	
+	retry := true
+
+
+	//Retry if we don't get a majority of acceptor responses and don't receive preempted
+	for {
 		for _, acceptorPort := range self.acceptors {
 			go self.ScoutTalkToAcceptor(acceptorPort, scoutAcceptorChannel)
 
-		}
-	}
-	counter := 0
-	for {
-		select {
-		case response := <-scoutAcceptorChannel:
-			fmt.Println(response)
-			responseSlice := strings.Split(response, ",")
-			keyWord := responseSlice[0]
-			if keyWord == "p1b" {
-			
-				acceptorBallotInt, _ := strconv.Atoi(responseSlice[2])
-				allAccepted := responseSlice[3:]
-				if acceptorBallotInt == self.ballotNum {
+		}	
+		counter := 0
+		numResponses := 0
+		for numResponses < len(self.acceptors){
+			select {
+			case response := <-scoutAcceptorChannel:
+				numResponses +=1
+				responseSlice := strings.Split(response, ",")
+				keyWord := responseSlice[0]
+				if keyWord == "p1b" {
+				
+					acceptorBallotInt, _ := strconv.Atoi(responseSlice[2])
+					allAccepted := responseSlice[3:]
+					if acceptorBallotInt == self.ballotNum {
 
-					for _, receivedPval := range allAccepted {
-						found := false
-						for _, myPval := range pvalues {
-							if myPval == receivedPval {
-								found = true
-								break
+						for _, receivedPval := range allAccepted {
+							found := false
+							for _, myPval := range pvalues {
+								if myPval == receivedPval {
+									found = true
+									break
+								}
+							}
+							if !found {
+								pvalues = append(pvalues, receivedPval)
 							}
 						}
-						if !found {
-							pvalues = append(pvalues, receivedPval)
+
+						counter += 1
+						if counter >= majorityNum {
+							retry = true
+							pvalStr := ""
+							for _, pval := range pvalues {
+								pvalStr += "," + pval
+							}
+
+							workerChannel <- "adopted," + strconv.Itoa(self.ballotNum) + pvalStr
+							counter = 0
+							break
 						}
-					}
 
-					counter += 1
-					if counter >= majorityNum {
-
-						pvalStr := ""
-						for _, pval := range pvalues {
-							pvalStr += "," + pval
-						}
-
-						workerChannel <- "adopted," + strconv.Itoa(self.ballotNum) + pvalStr
-						counter = 0
+					} else {
+						workerChannel <- "preempted," + responseSlice[2]
+						retry = false
 						break
 					}
 
-				} else {
-					workerChannel <- "preempted," + responseSlice[2]
-					break
 				}
-
 			}
-		}
 
+		}
+		if !retry {
+			break
+		}
+		time.Sleep(1000 * time.Millisecond)
 	}
 
 }
 //Spawn a commander to get acceptor to accept proposal
 func (self *Leader) SpawnCommander(workerChannel chan string, slotNum int, proposal string) {
-	// alive := self.aliveAcceptors
-	fmt.Println("PID:" + self.pid + " COMMANDER SPAWNED")
 	majorityNum := len(self.acceptors)/2 + 1
 	commAcceptorChannel := make(chan string)
 	if crashStage == "p2a" {
+
+		//crashing after sending p2a to no one
 		if len(crashAfterSentTo) == 0 {
 			os.Exit(1)
 		} else {
@@ -183,92 +182,92 @@ func (self *Leader) SpawnCommander(workerChannel chan string, slotNum int, propo
 				acceptorPort := self.acceptors[acceptorIdInt]
 				acceptorConn, _ := net.Dial("tcp", "127.0.0.1:"+acceptorPort)
 				fmt.Fprintf(acceptorConn, "p2a,"+self.pid+","+strconv.Itoa(self.ballotNum)+" "+strconv.Itoa(slotNum)+" "+proposal+"\n")
-			//	acceptorConn.Close()
 			}
+			//crashing after sending p2a 
 			os.Exit(1)
 		}
-	} else {
+	} 
+
+	//Retry if we don't get a majority of acceptor responses and don't receive preempted
+	retry := true
+	for {
+		// sending p2A to acceptors
 		for _, acceptorPort := range self.acceptors {
 			go self.CommTalkToAcceptor(acceptorPort, commAcceptorChannel, slotNum, proposal)
 		}
-	}
 
-	counter := 0
-	for {
-		select {
-		case response := <-commAcceptorChannel:
-			fmt.Println(response)
-			responseSlice := strings.Split(response, ",")
-			keyWord := responseSlice[0]
-			if keyWord == "p2b" {
-				//		acceptorId := responseSlice[1]
-				acceptorBallotInt, _ := strconv.Atoi(responseSlice[2])
-				fmt.Println("ACCEPTOR BALLOT INT:"+ string(responseSlice[2]))
-				if acceptorBallotInt == self.ballotNum {
-					counter += 1
-					fmt.Println(counter)
-					if counter >= majorityNum {
-						counter = 0
-						if crashStage == "decision" {
-							if len(crashAfterSentTo) == 0 {
-								fmt.Println("CRASH AFTER SENDING DECISION TO NO ONE")
-								os.Exit(1)
-							} else {
-								for _, replicaId := range crashAfterSentTo {
-									replicaIdInt, _ := strconv.Atoi(replicaId)
-									replicaPort := self.replicas[replicaIdInt]
-									replicaConn, _ := net.Dial("tcp", "127.0.0.1:"+replicaPort)
-									fmt.Fprintf(replicaConn, "decision,"+strconv.Itoa(slotNum)+","+proposal+"\n")
-									//replicaConn.Close()
+		counter := 0
+		numResponses := 0
+		for numResponses < len(self.acceptors){
+			select {
+			//Get response from acceptor
+			case response := <-commAcceptorChannel:
+				numResponses += 1
+				responseSlice := strings.Split(response, ",")
+				keyWord := responseSlice[0]
+				if keyWord == "p2b" {
+					acceptorBallotInt, _ := strconv.Atoi(responseSlice[2])
+					if acceptorBallotInt == self.ballotNum {
+						counter += 1
+						if counter >= majorityNum {
+							counter = 0
+							//Crashing after sending decision to no one
+							if crashStage == "decision" {
+								if len(crashAfterSentTo) == 0 {
+									os.Exit(1)
+								} else {
+									for _, replicaId := range crashAfterSentTo {
+										replicaIdInt, _ := strconv.Atoi(replicaId)
+										replicaPort := self.replicas[replicaIdInt]
+										replicaConn, _ := net.Dial("tcp", "127.0.0.1:"+replicaPort)
+										fmt.Fprintf(replicaConn, "decision,"+strconv.Itoa(slotNum)+","+proposal+"\n")
+									}
+									os.Exit(1)
 								}
-								fmt.Println("CRASH AFTER SENDING DECISION")
-								os.Exit(1)
 							}
-						}
-						fmt.Println("DECISION SENDING")
-						fmt.Println(self.proposals)
-						
-						for _, replicaPort := range self.replicas {
-							replicaConn, err := net.Dial("tcp", "127.0.0.1:"+replicaPort)
-							if err != nil{
-								fmt.Println(err)
-								continue
+							retry = false
+							//Send decision to all
+							for _, replicaPort := range self.replicas {
+								replicaConn, err := net.Dial("tcp", "127.0.0.1:"+replicaPort)
+								if err != nil{
+									fmt.Println(err)
+									continue
+								}
+								fmt.Fprintf(replicaConn, "decision "+strconv.Itoa(slotNum)+" "+proposal + "\n")
 							}
-							fmt.Fprintf(replicaConn, "decision "+strconv.Itoa(slotNum)+" "+proposal + "\n")
-						
-
-							//replicaConn.Close()
+							workerChannel <- ""
+							break
 						}
-						workerChannel <- ""
+					} else {
+						workerChannel <- "preempted," + responseSlice[2]
+						retry = false
 						break
 					}
-				} else {
-
-					workerChannel <- "preempted," + responseSlice[2]
-					break
 				}
 
 			}
 
 		}
-
+		
+		if !retry {
+			break
+		}
+		time.Sleep(1000 * time.Millisecond)
 	}
 
 }
 
 //Scout talks to one acceptor; tells leader the acceptor's response
 func (self *Leader) ScoutTalkToAcceptor(processPort string, scoutAcceptorChannel chan string) {
-	fmt.Println("Scout is talking to this acceptor: " + processPort)
+
 	acceptorConn, err := net.Dial("tcp", "127.0.0.1:"+processPort)
 	if err != nil {
 		fmt.Println(err)
 		scoutAcceptorChannel <- ""
 		return
 	}
-	fmt.Println("Sending p1a")
 	fmt.Fprintf(acceptorConn, "p1a,"+self.pid+","+strconv.Itoa(self.ballotNum)+"\n")
 	response, _ := bufio.NewReader(acceptorConn).ReadString('\n')
-//	acceptorConn.Close()
 	scoutAcceptorChannel <- response
 }
 
@@ -280,10 +279,8 @@ func (self *Leader) CommTalkToAcceptor(processPort string, commAcceptorChannel c
 		commAcceptorChannel <- ""
 		return
 	}
-	fmt.Println("Sending p2a")
 	fmt.Fprintf(acceptorConn, "p2a,"+self.pid+","+strconv.Itoa(self.ballotNum)+" "+strconv.Itoa(slotNum)+" "+proposal+"\n")
 	response, _ := bufio.NewReader(acceptorConn).ReadString('\n')
-	//acceptorConn.Close()
 	commAcceptorChannel <- response
 }
 

@@ -4,6 +4,7 @@ package main
 import (
 	"os"
 	"strconv"
+	"fmt"
 )
 
 var crashStage string
@@ -43,10 +44,9 @@ func main() {
 
 	//Run acceptor and replica on separate go routines; leader is on main goroutine.
 	//Replica and leader talk to each other via channel
+	fmt.Println("STARTING UP:: " + pid)
 	go acceptor.Run()
-	go replica.Run(replicaLeaderChannel) 
-	leader.Run(replicaLeaderChannel)
-
-	os.Exit(0)
+	go leader.Run(replicaLeaderChannel)
+	replica.Run(replicaLeaderChannel) 
 
 }

@@ -2,11 +2,11 @@
 1 start 4 10022
 2 start 4 10023
 3 start 4 10024
-1 msg 5 content
+0 msg 4 hello
+-1 waitForAck 4
+1 msg 2 world
+-1 waitForAck 2
+1 msg 5 there
 -1 waitForAck 5
-2 msg 1 content
--1 waitForAck 1
-2 msg 3 content
--1 waitForAck 3
 0 get chatLog
 3 get chatLog
