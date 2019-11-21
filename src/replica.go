@@ -35,40 +35,40 @@ func (self *Replica) Run(replicaLeaderChannel chan string) {
 		fmt.Println("Error listening!")
 	}
 	connMaster, error := lMaster.Accept()
-	
+
 	go self.HandleCommander(lCommander, connMaster, replicaLeaderChannel) // TO listen to decisions by other process's commanders
-	
+
 	self.SyncDecisions(replicaLeaderChannel)
-	
+
 	self.HandleMaster(connMaster, replicaLeaderChannel)
 
 }
 
 //Ping other servers for their decision sets; enacted via leader
-func (self *Replica) SyncDecisions(replicaLeaderChannel chan string){
+func (self *Replica) SyncDecisions(replicaLeaderChannel chan string) {
 	replicaLeaderChannel <- "catchup"
 	numResponse := 0
-	for numResponse < self.n{
-	select {
-		case response := <- replicaLeaderChannel:
-			if response != ""  && response !=  "\n" {
+	for numResponse < self.n {
+		select {
+		case response := <-replicaLeaderChannel:
+			if response != "" && response != "\n" {
 				responseSlice := strings.Split(response, ",")
-				
+
 				for _, decision := range responseSlice {
 					decisionSlice := strings.Split(decision, " ")
 					slot, _ := strconv.Atoi(decisionSlice[0])
 					msg := decisionSlice[1]
-					if self.decisions[slot] == ""{
+					if self.decisions[slot] == "" {
 						self.decisions[slot] = decision
 						self.chatLog[slot] = msg
-					} 
+					}
 				}
-				
+
 			}
-			numResponse +=1
+			numResponse += 1
 		}
 	}
-	
+
 }
 
 //Propose a given command to all other servers
@@ -76,10 +76,9 @@ func (self *Replica) Propose(proposal string, replicaLeaderChannel chan string) 
 	nextSlot := self.slot
 	self.SyncDecisions(replicaLeaderChannel)
 
-
 	slotFound := false
 	for k, _ := range self.decisions {
-		if nextSlot <= k{
+		if nextSlot <= k {
 			nextSlot = k
 			slotFound = true
 		}
@@ -91,18 +90,18 @@ func (self *Replica) Propose(proposal string, replicaLeaderChannel chan string) 
 	}
 
 	self.proposals[nextSlot] = proposal
-	
+
 	msgToLeader := "propose " + strconv.Itoa(nextSlot) + " " + proposal //send proposal to leader
 	replicaLeaderChannel <- msgToLeader
 }
 
 //Applies everything in decisions onto chatlog
 func (self *Replica) Perform(proposal string, connMaster net.Conn) {
-	
-	for s, p := range self.decisions {	
+
+	for s, p := range self.decisions {
 		pSlice := strings.Split(p, " ")
 		self.chatLog[s] = pSlice[1]
-		
+
 	}
 
 	proposalSlice := strings.Split(proposal, " ")
@@ -116,7 +115,6 @@ func (self *Replica) Perform(proposal string, connMaster net.Conn) {
 
 	connMaster.Write([]byte(retMessage))
 
-
 }
 
 //Replica responds to commander decision or sync messages
@@ -125,7 +123,7 @@ func (self *Replica) HandleCommander(lCommander net.Listener, connMaster net.Con
 
 	for {
 		connCommander, error := lCommander.Accept()
-	
+
 		if error != nil {
 			fmt.Println("Error while accepting connection")
 			continue
@@ -138,31 +136,31 @@ func (self *Replica) HandleCommander(lCommander net.Listener, connMaster net.Con
 
 		retMessage := ""
 		switch keyWord {
-			case "decision":
+		case "decision":
 
-				slotNum := messageSlice[1] // s
-				command := strings.Join(messageSlice[2:], " ") // p
-				slotInt, _ := strconv.Atoi(slotNum)
-				self.decisions[slotInt] = command
+			slotNum := messageSlice[1]                     // s
+			command := strings.Join(messageSlice[2:], " ") // p
+			slotInt, _ := strconv.Atoi(slotNum)
+			self.decisions[slotInt] = command
 
-				self.Perform(command, connMaster)
+			self.Perform(command, connMaster)
 
-			case "catchup":
+		case "catchup":
 
-				decisionSlice := make([]string, 0)
-				retMessage := ""
-				if len(self.decisions) > 0{ 
-					for _, decision := range self.decisions {
-						decisionSlice = append(decisionSlice, decision)
-					}
-					retMessage += strings.Join(decisionSlice,",")
+			decisionSlice := make([]string, 0)
+			retMessage := ""
+			if len(self.decisions) > 0 {
+				for _, decision := range self.decisions {
+					decisionSlice = append(decisionSlice, decision)
 				}
+				retMessage += strings.Join(decisionSlice, ",")
+			}
 
-				connCommander.Write([]byte(retMessage + "\n"))
+			connCommander.Write([]byte(retMessage + "\n"))
 
-			default:
-				retMessage += "Invalid keyword, mustbe decision"
-				connCommander.Write([]byte(retMessage+ "\n") )
+		default:
+			retMessage += "Invalid keyword, mustbe decision"
+			connCommander.Write([]byte(retMessage + "\n"))
 
 		}
 
@@ -177,7 +175,7 @@ func (self *Replica) HandleMaster(connMaster net.Conn, replicaLeaderChannel chan
 	msg := ""
 	reader := bufio.NewReader(connMaster)
 	for {
-	
+
 		request, _ := reader.ReadString('\n')
 		request = strings.TrimSuffix(request, "\n")
 		requestSlice := strings.Split(request, " ")
@@ -186,81 +184,77 @@ func (self *Replica) HandleMaster(connMaster net.Conn, replicaLeaderChannel chan
 		retMessage := ""
 
 		switch command {
-			case "msg":
-				msgId = requestSlice[1]
-				self.slot, _ = strconv.Atoi(msgId)
+		case "msg":
+			msgId = requestSlice[1]
+			self.slot, _ = strconv.Atoi(msgId)
 
-				msg = requestSlice[2]
-				found := false
-				foundSlot := -1
-				
-				chatLog := self.chatLog
-				for slot, savedMsg := range chatLog{
-					if savedMsg == msg {
-						foundSlot = slot
-						found = true
-						break
-					}
-				}
+			msg = requestSlice[2]
+			found := false
+			foundSlot := -1
 
-				if !found {
-					self.Propose(msgId+" "+msg, replicaLeaderChannel)
-				} else{
-					retMessage := "ack "
-					retMessage += msgId + " "
-					retMessage += strconv.Itoa(foundSlot)
-					lenStr := strconv.Itoa(len(retMessage))
-					retMessage = lenStr + "-" + retMessage
-					connMaster.Write([]byte(retMessage))	
+			chatLog := self.chatLog
+			for slot, savedMsg := range chatLog {
+				if savedMsg == msg {
+					foundSlot = slot
+					found = true
+					break
 				}
-					
-				
-			case "get":
-				retMessage += "chatLog "
+			}
 
-				removeComma := 0
-				counter := 0
-				for i := 0; i <= 100; i++ {
-					if counter == len(self.chatLog) {
-						break
-					}
-					if self.chatLog[i] != "" {
-						retMessage += self.chatLog[i] + ","
-						removeComma = 1
-						counter += 1
-					}
-				}
-				retMessage = retMessage[0 : len(retMessage)-removeComma]
+			if !found {
+				self.Propose(msgId+" "+msg, replicaLeaderChannel)
+			} else {
+				retMessage := "ack "
+				retMessage += msgId + " "
+				retMessage += strconv.Itoa(foundSlot)
 				lenStr := strconv.Itoa(len(retMessage))
 				retMessage = lenStr + "-" + retMessage
 				connMaster.Write([]byte(retMessage))
+			}
 
-			case "crash":
-				os.Exit(1)
+		case "get":
+			retMessage += "chatLog "
 
-			case "crashAfterP1b":
-				crashStage = "p1b"
-			case "crashAfterP2b":
-				crashStage = "p2b"
-			case "crashP1a":
-				crashStage = "p1a"
-				crashAfterSentTo = requestSlice[1:]
-			case "crashP2a":
-				crashStage = "p2a"
-				crashAfterSentTo = requestSlice[1:]
+			removeComma := 0
+			counter := 0
+			for i := 0; i <= 100; i++ {
+				if counter == len(self.chatLog) {
+					break
+				}
+				if self.chatLog[i] != "" {
+					retMessage += self.chatLog[i] + ","
+					removeComma = 1
+					counter += 1
+				}
+			}
+			retMessage = retMessage[0 : len(retMessage)-removeComma]
+			lenStr := strconv.Itoa(len(retMessage))
+			retMessage = lenStr + "-" + retMessage
+			connMaster.Write([]byte(retMessage))
 
-			case "crashDecision":
-				crashStage = "decision"
-				crashAfterSentTo = requestSlice[1:]
+		case "crash":
+			os.Exit(1)
 
-			default:
-				retMessage += "Invalid command. Use 'get', 'alive', or 'broadcast <message>'"
-				connMaster.Write([]byte(retMessage))
+		case "crashAfterP1b":
+			crashStage = "p1b"
+		case "crashAfterP2b":
+			crashStage = "p2b"
+		case "crashP1a":
+			crashStage = "p1a"
+			crashAfterSentTo = requestSlice[1:]
+		case "crashP2a":
+			crashStage = "p2a"
+			crashAfterSentTo = requestSlice[1:]
+
+		case "crashDecision":
+			crashStage = "decision"
+			crashAfterSentTo = requestSlice[1:]
+
+		default:
+			retMessage += "Invalid command. Use 'get', 'alive', or 'broadcast <message>'"
+			connMaster.Write([]byte(retMessage))
 		}
 
 	}
 
-
 }
-
-

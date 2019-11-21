@@ -32,59 +32,58 @@ func (self *Acceptor) Run() {
 		}
 		reader := bufio.NewReader(connLeader)
 		message, _ := reader.ReadString('\n')
-	
+
 		message = strings.TrimSuffix(message, "\n")
 		messageSlice := strings.Split(message, ",")
 		keyWord := messageSlice[0]
 
 		retMessage := ""
 		switch keyWord {
-			case "p1a":
+		case "p1a":
 
-				receivedBallot := messageSlice[2] // b
-				receivedBallotInt, _ := strconv.Atoi(receivedBallot)
-				if receivedBallotInt > self.currentBallot {
-					self.currentBallot = receivedBallotInt
-				}
-				retMessage += "p1b," + self.pid + "," + strconv.Itoa(self.currentBallot)
-				acceptedStr := ""
-				for _, accepted := range self.accepted {
-					acceptedStr += "," + accepted
-				}
-				retMessage += acceptedStr
-				connLeader.Write([]byte(retMessage + "\n"))
+			receivedBallot := messageSlice[2] // b
+			receivedBallotInt, _ := strconv.Atoi(receivedBallot)
+			if receivedBallotInt > self.currentBallot {
+				self.currentBallot = receivedBallotInt
+			}
+			retMessage += "p1b," + self.pid + "," + strconv.Itoa(self.currentBallot)
+			acceptedStr := ""
+			for _, accepted := range self.accepted {
+				acceptedStr += "," + accepted
+			}
+			retMessage += acceptedStr
+			connLeader.Write([]byte(retMessage + "\n"))
 
-				//Crash after sending p1b
-				if crashStage == "p1b" {
-					os.Exit(1)
-				}
+			//Crash after sending p1b
+			if crashStage == "p1b" {
+				os.Exit(1)
+			}
 
-			case "p2a":
-			
-				pval := messageSlice[2]
-				pvalSlice := strings.Split(pval, " ")
-				receivedBallotInt, _ := strconv.Atoi(pvalSlice[0])
-				receivedSlotInt, _ := strconv.Atoi(pvalSlice[1])
-				if receivedBallotInt >= self.currentBallot {
-					self.currentBallot = receivedBallotInt
-					self.accepted[receivedSlotInt] = pval
-				}
+		case "p2a":
 
-				retMessage += "p2b," + self.pid + "," + strconv.Itoa(self.currentBallot) + "\n"
-				connLeader.Write([]byte(retMessage))
+			pval := messageSlice[2]
+			pvalSlice := strings.Split(pval, " ")
+			receivedBallotInt, _ := strconv.Atoi(pvalSlice[0])
+			receivedSlotInt, _ := strconv.Atoi(pvalSlice[1])
+			if receivedBallotInt >= self.currentBallot {
+				self.currentBallot = receivedBallotInt
+				self.accepted[receivedSlotInt] = pval
+			}
 
-				//Crash after sending P2b
-				if crashStage == "p2b" {
-					os.Exit(1)
-				}
+			retMessage += "p2b," + self.pid + "," + strconv.Itoa(self.currentBallot) + "\n"
+			connLeader.Write([]byte(retMessage))
 
-			default:
-				retMessage += "Invalid keyword, must be p1a or p2a or ping"
-				connLeader.Write([]byte(retMessage + "\n"))
+			//Crash after sending P2b
+			if crashStage == "p2b" {
+				os.Exit(1)
+			}
+
+		default:
+			retMessage += "Invalid keyword, must be p1a or p2a or ping"
+			connLeader.Write([]byte(retMessage + "\n"))
 
 		}
 		connLeader.Close()
 	}
 
 }
-
