@@ -12,9 +12,9 @@ Slip days used(total):
 * Zhilong Li (zl252): 2
 
 ## General Overview
-We implemented Multi-Paxos, a consensus algorithm, by following and maintaining the specs and invariants described in "Paxos Made Moderately Complex" by Robbert Van Reneese and Deniz Altinbuken, though our code diverges from the paper's pseudocode. Each process performs all of the following 5 roles: Replica, Leader, Acceptor, Commander, and Scout.
+We implemented Multi-Paxos, a distributed consensus algorithm, by following and maintaining the specs and invariants described in "Paxos Made Moderately Complex" by Robbert Van Reneese and Deniz Altinbuken, though our code diverges from the paper's pseudocode. Each process performs all of the following 5 roles: Replica, Leader, Acceptor, Commander, and Scout.
 
-On a high level what each role does is the following:
+On a high level, what each role does is the following:
 
 - Replica: Client-facing role that prompts the leader to propose a command to the other servers at a specific slot number, performs the decisions agreed by the majority, and responds accordingly to client.
 - Leader: Role that spawns scouts and commanders to persuade the acceptors to adopt a given ballot number at a given slot number, then accept a given proposal
