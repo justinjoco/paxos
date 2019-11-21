@@ -12,7 +12,7 @@ Slip days used(total):
 * Zhilong Li (zl252): 2
 
 ## General Overview
-We implemented Multi-Paxos, a consensus algorithm, by following and maintaining the specs and invariants described in "Paxos Made Moderately Complex" by Robbert Van Reneese and Deniz Altinbuken, though our code diverges from the paper's pseudocode. We implemented all 5 roles: Replica, Leader, Acceptor, Commander, and Scout.
+We implemented Multi-Paxos, a consensus algorithm, by following and maintaining the specs and invariants described in "Paxos Made Moderately Complex" by Robbert Van Reneese and Deniz Altinbuken, though our code diverges from the paper's pseudocode. Each process performs all of the following 5 roles: Replica, Leader, Acceptor, Commander, and Scout.
 
 On a high level what each role does is the following:
 
