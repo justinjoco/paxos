@@ -2,3 +2,9 @@
 1 start 4 10022
 2 start 4 10023
 3 start 4 10024
+1 msg 0 content
+-1 waitForAck 0
+2 msg 1 content
+-1 waitForAck 1
+1 get chatLog
+2 get chatLog

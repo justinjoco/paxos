@@ -211,6 +211,7 @@ func (self *Leader) SpawnCommander(workerChannel chan string, slotNum int, propo
 						counter = 0
 						if crashStage == "decision" {
 							if len(crashAfterSentTo) == 0 {
+								fmt.Println("CRASH AFTER SENDING DECISION TO NO ONE")
 								os.Exit(1)
 							} else {
 								for _, replicaId := range crashAfterSentTo {
@@ -220,6 +221,7 @@ func (self *Leader) SpawnCommander(workerChannel chan string, slotNum int, propo
 									fmt.Fprintf(replicaConn, "decision,"+strconv.Itoa(slotNum)+","+proposal+"\n")
 									//replicaConn.Close()
 								}
+								fmt.Println("CRASH AFTER SENDING DECISION")
 								os.Exit(1)
 							}
 						}
