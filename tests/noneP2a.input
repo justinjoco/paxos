@@ -1,0 +1,10 @@
+0 start 4 10021
+1 start 4 10022
+2 start 4 10023
+3 start 4 10024
+0 msg 0 hello
+-1 waitForAck 0
+1 crashP2a
+1 msg 1 there
+2 get chatLog
+3 get chatLog
