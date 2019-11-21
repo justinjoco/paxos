@@ -1,4 +1,4 @@
 #!/bin/bash
 
 #Stops all Go processes
-./fullstopall
+ps aux | grep '[/]process' | awk '{print $2}' | xargs kill -SIGKILL
