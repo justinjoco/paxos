@@ -1,16 +1,6 @@
 # Paxos in Go
 Authors: Dilip Reddy (dr589), Justin Joco (jaj263), Zhilong Li (zl242)
 
-Slip days used(this project): 0  
-
-Slip days used(total):
-
-* Dilip (dr589): 4
-
-* Justin (jaj263): 2
-
-* Zhilong Li (zl242): 2
-
 ## General Overview
 We implemented Multi-Paxos, a distributed consensus algorithm, by following and maintaining the specs and invariants described in "Paxos Made Moderately Complex" by Robbert Van Reneese and Deniz Altinbuken, though our code diverges from the paper's pseudocode to be more in line with algorithmic details in "Paxos Made Simple" by Leslie Lamport. Each process performs all of the following 5 roles: Replica, Leader, Acceptor, Commander, and Scout.
 
