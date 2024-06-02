@@ -1,8 +1,8 @@
 # Paxos in Go
-Authors: Dilip Reddy (dr589), Justin Joco (jaj263), Zhilong Li (zl242)
+Author: Justin Joco (jaj263)
 
 ## General Overview
-We implemented Multi-Paxos, a distributed consensus algorithm, by following and maintaining the specs and invariants described in "Paxos Made Moderately Complex" by Robbert Van Reneese and Deniz Altinbuken, though our code diverges from the paper's pseudocode to be more in line with algorithmic details in "Paxos Made Simple" by Leslie Lamport. Each process performs all of the following 5 roles: Replica, Leader, Acceptor, Commander, and Scout.
+I implemented Multi-Paxos, a distributed consensus algorithm, by following and maintaining the specs and invariants described in "Paxos Made Moderately Complex" by Robbert Van Reneese and Deniz Altinbuken, though my code diverges from the paper's pseudocode to be more in line with algorithmic details in "Paxos Made Simple" by Leslie Lamport. Each process performs all of the following 5 roles: Replica, Leader, Acceptor, Commander, and Scout.
 
 On a high level, what each role does is the following:
 
@@ -30,7 +30,7 @@ To stop all Go processes from running and destroy the DT logs, run `./stopall`.
 Use master.py to send your commands directly to the distributed processes.
 
 ### OS Testing Environment
-Our group used OSX Mojave 10.14.x and Ubuntu Linux to compile, run, and test this project.
+I used OSX Mojave 10.14.x and Ubuntu Linux to compile, run, and test this project.
 
 
 
